@@ -325,3 +325,149 @@ await jsm.deleteConsumer('MY_STREAM', 'MY_CONSUMER');
 ```
 
 For complete examples, see [example/jetstream_example.dart](example/jetstream_example.dart).
+
+## KV (Key-Value) Store
+
+KV is a key-value store built on top of JetStream, providing a simple interface for storing and retrieving values by key.
+
+### Creating a KV Bucket
+
+```dart
+import 'package:dart_nats/dart_nats.dart';
+
+// Create KV manager
+var client = Client();
+await client.connect(Uri.parse('nats://localhost:4222'));
+final kvm = await Kvm.fromClient(client);
+
+// Create a bucket
+final kv = await kvm.create('my-bucket', KvOptions(
+  description: 'My KV bucket',
+  history: 5,  // Keep last 5 values
+  storage: StorageType.file,
+));
+```
+
+### Put and Get Operations
+
+```dart
+// Put a string value
+final revision = await kv.putString('user.name', 'John Doe');
+
+// Get the value
+final entry = await kv.get('user.name');
+if (entry != null) {
+  print('Value: ${entry.string()}');
+  print('Revision: ${entry.revision}');
+}
+
+// Put binary data
+await kv.put('user.avatar', avatarBytes);
+
+// Store JSON
+await kv.putString('user.profile', '{"age": 30, "city": "SF"}');
+final profileEntry = await kv.get('user.profile');
+final profile = profileEntry?.json<Map<String, dynamic>>();
+```
+
+### Delete and Purge
+
+```dart
+// Delete a key (marks as deleted, keeps in history)
+await kv.delete('user.name');
+
+// Purge a key (removes all history)
+await kv.purge('user.name');
+```
+
+### Listing Keys
+
+```dart
+// List all keys in the bucket
+await for (final key in kv.keys()) {
+  final entry = await kv.get(key);
+  if (entry != null && !entry.isDeleted) {
+    print('$key = ${entry.string()}');
+  }
+}
+```
+
+For complete examples, see [example/kv_example.dart](example/kv_example.dart).
+
+## Object Store
+
+Object Store provides efficient storage for large objects with automatic chunking.
+
+### Creating an Object Store
+
+```dart
+import 'package:dart_nats/dart_nats.dart';
+
+// Create Object Store manager
+var client = Client();
+await client.connect(Uri.parse('nats://localhost:4222'));
+final objm = await Objm.fromClient(client);
+
+// Create a store
+final store = await objm.create('my-store', ObjectStoreOptions(
+  description: 'My object store',
+  storage: StorageType.file,
+));
+```
+
+### Storing Objects
+
+```dart
+// Put a small object
+final textData = Uint8List.fromList(utf8.encode('Hello, World!'));
+final info = await store.put(
+  ObjectStoreMeta(
+    name: 'greeting.txt',
+    description: 'A greeting',
+    metadata: {'type': 'text'},
+  ),
+  textData,
+);
+
+print('Stored: ${info.name}, Size: ${info.size}, Chunks: ${info.chunks}');
+
+// Put a large object (automatically chunked)
+final largeData = Uint8List(1024 * 1024); // 1 MB
+await store.put(
+  ObjectStoreMeta(
+    name: 'large-file.bin',
+    options: ObjectStoreMetaOptions(
+      maxChunkSize: 128 * 1024, // 128 KB chunks
+    ),
+  ),
+  largeData,
+);
+```
+
+### Retrieving Objects
+
+```dart
+// Get an object
+final data = await store.get('greeting.txt');
+if (data != null) {
+  print('Retrieved: ${utf8.decode(data)}');
+}
+
+// Get object info without data
+final info = await store.getInfo('greeting.txt');
+print('Size: ${info?.size} bytes');
+```
+
+### Listing and Deleting Objects
+
+```dart
+// List all objects
+await for (final name in store.list()) {
+  print('Object: $name');
+}
+
+// Delete an object
+await store.delete('greeting.txt');
+```
+
+For complete examples, see [example/objectstore_example.dart](example/objectstore_example.dart).
