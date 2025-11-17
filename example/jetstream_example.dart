@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:dart_nats/dart_nats.dart';
 
 /// Example demonstrating JetStream functionality

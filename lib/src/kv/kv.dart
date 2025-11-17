@@ -21,10 +21,8 @@ import '../jetstream/jsclient.dart';
 import '../jetstream/jsm.dart';
 import '../jetstream/jsapi_types.dart';
 import '../jetstream/jserrors.dart';
-import '../jetstream/jsmsg.dart';
 import 'kv_types.dart';
 
-const String _kvSubjectPrefix = '\$KV';
 const String _kvOperationHeader = 'KV-Operation';
 
 /// Regular expression for valid bucket names
@@ -240,7 +238,6 @@ class Kv {
 
     try {
       await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
-        final jsMsg = JsMsg(msg);
         if (msg.subject != null) {
           final key = msg.subject!.substring('\$KV.$_bucket.'.length);
           if (!seen.contains(key)) {
