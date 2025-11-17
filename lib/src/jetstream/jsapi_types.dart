@@ -216,6 +216,49 @@ class StreamState {
   }
 }
 
+/// Stream source configuration for mirroring or sourcing
+class StreamSource {
+  /// Name of the source stream
+  final String name;
+
+  /// Optional starting sequence
+  final int? optStartSeq;
+
+  /// Optional starting time
+  final String? optStartTime;
+
+  /// Filter subject
+  final String? filterSubject;
+
+  /// Creates a stream source
+  StreamSource({
+    required this.name,
+    this.optStartSeq,
+    this.optStartTime,
+    this.filterSubject,
+  });
+
+  /// Creates from JSON
+  factory StreamSource.fromJson(Map<String, dynamic> json) {
+    return StreamSource(
+      name: json['name'] as String,
+      optStartSeq: json['opt_start_seq'] as int?,
+      optStartTime: json['opt_start_time'] as String?,
+      filterSubject: json['filter_subject'] as String?,
+    );
+  }
+
+  /// Converts to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      if (optStartSeq != null) 'opt_start_seq': optStartSeq,
+      if (optStartTime != null) 'opt_start_time': optStartTime,
+      if (filterSubject != null) 'filter_subject': filterSubject,
+    };
+  }
+}
+
 /// Stream configuration
 class StreamConfig {
   /// A unique name for the stream
