@@ -198,6 +198,130 @@ The following is a list of features currently supported:
 - [x] - All authentication models, including NATS 2.0 JWT and nkey
 - [x] - NATS 2.x 
 - [x] - TLS 
+- [x] - JetStream support
 
 Planned:
 - [ ] - Connect to list of servers
+
+## JetStream
+
+JetStream is the NATS persistence engine providing streaming, message, and worker queues with At-Least-Once semantics.
+
+### Stream Management
+
+```dart
+import 'package:dart_nats/dart_nats.dart';
+
+// Create JetStream manager
+var client = Client();
+await client.connect(Uri.parse('nats://localhost:4222'));
+final jsm = await jetstreamManager(client);
+
+// Create a stream
+final streamConfig = StreamConfig(
+  name: 'ORDERS',
+  subjects: ['orders.>'],
+  retention: RetentionPolicy.limits,
+  maxMsgs: 1000,
+  storage: StorageType.file,
+);
+final streamInfo = await jsm.addStream(streamConfig);
+
+// List streams
+await for (final streamName in jsm.listStreams()) {
+  print('Stream: $streamName');
+}
+
+// Get stream info
+final info = await jsm.getStreamInfo('ORDERS');
+print('Messages: ${info.state.messages}');
+```
+
+### Publishing with JetStream
+
+```dart
+// Create JetStream client
+final js = jetstream(client);
+
+// Publish a message and get acknowledgment
+final pubAck = await js.publishString(
+  'orders.new',
+  '{"id": "123", "item": "widget"}',
+  options: JetStreamPublishOptions(
+    msgId: 'order-123',
+    headers: {'order-id': '123'},
+  ),
+);
+
+print('Published to stream: ${pubAck.stream}');
+print('Sequence: ${pubAck.seq}');
+```
+
+### Pull Consumer
+
+```dart
+// Create a durable pull consumer
+final consumerConfig = ConsumerConfig(
+  durableName: 'ORDERS_PROCESSOR',
+  filterSubject: 'orders.>',
+  ackPolicy: AckPolicy.explicit,
+);
+await jsm.addConsumer('ORDERS', consumerConfig);
+
+// Subscribe and fetch messages
+final sub = await js.pullSubscribe(
+  'orders.>',
+  stream: 'ORDERS',
+  consumer: 'ORDERS_PROCESSOR',
+);
+
+await for (final msg in sub.fetch(10)) {
+  print('Received: ${msg.stringData}');
+  print('Stream sequence: ${msg.deliveredStreamSeq}');
+  
+  // Acknowledge the message
+  msg.ack();
+}
+```
+
+### Push Consumer
+
+```dart
+// Subscribe to a push consumer
+final stream = await js.pushSubscribe(
+  'orders.shipped',
+  stream: 'ORDERS',
+);
+
+await for (final msg in stream) {
+  print('Received: ${msg.stringData}');
+  msg.ack();
+}
+```
+
+### Consumer Management
+
+```dart
+// Create consumer
+final consumer = ConsumerConfig(
+  durableName: 'MY_CONSUMER',
+  filterSubject: 'events.>',
+  ackPolicy: AckPolicy.explicit,
+  deliverPolicy: DeliverPolicy.all,
+);
+await jsm.addConsumer('MY_STREAM', consumer);
+
+// List consumers
+await for (final consumerName in jsm.listConsumers('MY_STREAM')) {
+  print('Consumer: $consumerName');
+}
+
+// Get consumer info
+final consumerInfo = await jsm.getConsumerInfo('MY_STREAM', 'MY_CONSUMER');
+print('Pending: ${consumerInfo.numPending}');
+
+// Delete consumer
+await jsm.deleteConsumer('MY_STREAM', 'MY_CONSUMER');
+```
+
+For complete examples, see [example/jetstream_example.dart](example/jetstream_example.dart).
