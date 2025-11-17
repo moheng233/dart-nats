@@ -30,7 +30,7 @@ void main() async {
     print('Connected to NATS server');
 
     // Wait for connection to be established
-    await client.wait4Connected();
+    await client.waitUntilConnected();
 
     // Example 1: Stream Management
     await streamManagementExample(client);
@@ -228,7 +228,7 @@ Future<void> pushConsumerExample(Client client) async {
 
   // Create a push consumer
   print('\nCreating push consumer...');
-  final deliverSubject = client.newInbox();
+  final deliverSubject = newInbox(inboxPrefix: client.inboxPrefix);
   final consumerConfig = ConsumerConfig(
     deliverSubject: deliverSubject,
     filterSubject: 'orders.shipped',
