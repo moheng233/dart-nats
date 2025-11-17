@@ -25,6 +25,7 @@ class JetStreamManagerOptions extends JetStreamOptions {
   /// Whether to check if JetStream is enabled (default: true)
   final bool checkAPI;
 
+  /// Creates JetStream manager options
   JetStreamManagerOptions({
     String apiPrefix = '\$JS.API',
     Duration timeout = const Duration(seconds: 5),

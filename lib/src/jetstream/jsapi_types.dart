@@ -96,12 +96,14 @@ class ApiError {
   /// The NATS error code unique to each kind of error
   final int? errCode;
 
+  /// Creates an API error
   ApiError({
     required this.code,
     required this.description,
     this.errCode,
   });
 
+  /// Creates an API error from JSON
   factory ApiError.fromJson(Map<String, dynamic> json) {
     return ApiError(
       code: json['code'] as int,
@@ -110,6 +112,7 @@ class ApiError {
     );
   }
 
+  /// Converts the API error to JSON
   Map<String, dynamic> toJson() {
     return {
       'code': code,
@@ -121,14 +124,19 @@ class ApiError {
 
 /// Base API response
 class ApiResponse {
+  /// Response type
   final String type;
+  
+  /// API error if present
   final ApiError? error;
 
+  /// Creates an API response
   ApiResponse({
     required this.type,
     this.error,
   });
 
+  /// Creates an API response from JSON
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
     return ApiResponse(
       type: json['type'] as String,
@@ -138,6 +146,7 @@ class ApiResponse {
     );
   }
 
+  /// Converts the API response to JSON
   Map<String, dynamic> toJson() {
     return {
       'type': type,
@@ -169,6 +178,7 @@ class StreamState {
   /// Number of consumers
   final int consumerCount;
 
+  /// Creates a stream state
   StreamState({
     required this.messages,
     required this.bytes,
@@ -179,6 +189,7 @@ class StreamState {
     required this.consumerCount,
   });
 
+  /// Creates a stream state from JSON
   factory StreamState.fromJson(Map<String, dynamic> json) {
     return StreamState(
       messages: json['messages'] as int,
@@ -191,6 +202,7 @@ class StreamState {
     );
   }
 
+  /// Converts the stream state to JSON
   Map<String, dynamic> toJson() {
     return {
       'messages': messages,
@@ -248,6 +260,7 @@ class StreamConfig {
   /// No ack for published messages
   final bool? noAck;
 
+  /// Creates a stream configuration
   StreamConfig({
     required this.name,
     this.subjects,
@@ -265,6 +278,7 @@ class StreamConfig {
     this.noAck,
   });
 
+  /// Creates a stream configuration from JSON
   factory StreamConfig.fromJson(Map<String, dynamic> json) {
     return StreamConfig(
       name: json['name'] as String,
@@ -284,6 +298,7 @@ class StreamConfig {
     );
   }
 
+  /// Converts the stream configuration to JSON
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -315,12 +330,14 @@ class StreamInfo {
   /// Current stream state
   final StreamState state;
 
+  /// Creates stream information
   StreamInfo({
     required this.config,
     required this.created,
     required this.state,
   });
 
+  /// Creates stream information from JSON
   factory StreamInfo.fromJson(Map<String, dynamic> json) {
     return StreamInfo(
       config: StreamConfig.fromJson(json['config'] as Map<String, dynamic>),
@@ -329,6 +346,7 @@ class StreamInfo {
     );
   }
 
+  /// Converts stream information to JSON
   Map<String, dynamic> toJson() {
     return {
       'config': config.toJson(),
@@ -385,6 +403,7 @@ class ConsumerConfig {
   /// Description of the consumer
   final String? description;
 
+  /// Creates a consumer configuration
   ConsumerConfig({
     this.durableName,
     this.deliverSubject,
@@ -403,6 +422,7 @@ class ConsumerConfig {
     this.description,
   });
 
+  /// Creates a consumer configuration from JSON
   factory ConsumerConfig.fromJson(Map<String, dynamic> json) {
     return ConsumerConfig(
       durableName: json['durable_name'] as String?,
@@ -423,6 +443,7 @@ class ConsumerConfig {
     );
   }
 
+  /// Converts the consumer configuration to JSON
   Map<String, dynamic> toJson() {
     return {
       if (durableName != null) 'durable_name': durableName,
@@ -452,11 +473,13 @@ class SequenceInfo {
   /// Stream sequence
   final int streamSeq;
 
+  /// Creates sequence information
   SequenceInfo({
     required this.consumerSeq,
     required this.streamSeq,
   });
 
+  /// Creates sequence information from JSON
   factory SequenceInfo.fromJson(Map<String, dynamic> json) {
     return SequenceInfo(
       consumerSeq: json['consumer_seq'] as int,
@@ -464,6 +487,7 @@ class SequenceInfo {
     );
   }
 
+  /// Converts sequence information to JSON
   Map<String, dynamic> toJson() {
     return {
       'consumer_seq': consumerSeq,
@@ -501,6 +525,7 @@ class ConsumerInfo {
   /// Number of waiting requests
   final int numWaiting;
 
+  /// Creates consumer information
   ConsumerInfo({
     required this.streamName,
     required this.name,
@@ -513,6 +538,7 @@ class ConsumerInfo {
     required this.numWaiting,
   });
 
+  /// Creates consumer information from JSON
   factory ConsumerInfo.fromJson(Map<String, dynamic> json) {
     return ConsumerInfo(
       streamName: json['stream_name'] as String,
@@ -531,6 +557,7 @@ class ConsumerInfo {
     );
   }
 
+  /// Converts consumer information to JSON
   Map<String, dynamic> toJson() {
     return {
       'stream_name': streamName,
@@ -560,6 +587,7 @@ class JetStreamAccountStats {
   /// Number of consumers
   final int consumers;
 
+  /// Creates JetStream account statistics
   JetStreamAccountStats({
     required this.memory,
     required this.storage,
@@ -567,6 +595,7 @@ class JetStreamAccountStats {
     required this.consumers,
   });
 
+  /// Creates JetStream account statistics from JSON
   factory JetStreamAccountStats.fromJson(Map<String, dynamic> json) {
     return JetStreamAccountStats(
       memory: json['memory'] as int,
@@ -576,6 +605,7 @@ class JetStreamAccountStats {
     );
   }
 
+  /// Converts JetStream account statistics to JSON
   Map<String, dynamic> toJson() {
     return {
       'memory': memory,

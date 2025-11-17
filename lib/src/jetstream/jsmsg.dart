@@ -19,15 +19,34 @@ import 'jserrors.dart';
 
 /// JetStream message headers
 class JsHeaders {
+  /// JetStream domain header
   static const String domain = 'Nats-Domain';
+  
+  /// Stream name header
   static const String stream = 'Nats-Stream';
+  
+  /// Consumer name header
   static const String consumer = 'Nats-Consumer';
+  
+  /// Delivered consumer sequence header
   static const String deliveredConsumerSeq = 'Nats-Delivered-Consumer-Seq';
+  
+  /// Delivered stream sequence header
   static const String deliveredStreamSeq = 'Nats-Delivered-Stream-Seq';
+  
+  /// Timestamp header
   static const String timestamp = 'Nats-Time-Stamp';
+  
+  /// Pending messages header
   static const String pending = 'Nats-Pending-Messages';
+  
+  /// Pending bytes header
   static const String pendingBytes = 'Nats-Pending-Bytes';
+  
+  /// Last consumer sequence header
   static const String lastConsumerSeq = 'Nats-Last-Consumer';
+  
+  /// Last stream sequence header
   static const String lastStreamSeq = 'Nats-Last-Stream';
 }
 
@@ -36,6 +55,7 @@ class JsMsg {
   final Message _msg;
   bool _acked = false;
 
+  /// Creates a JetStream message wrapper
   JsMsg(this._msg);
 
   /// Get the underlying NATS message

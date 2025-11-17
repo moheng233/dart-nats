@@ -33,6 +33,7 @@ class JetStreamOptions {
   /// JetStream domain
   final String? domain;
 
+  /// Creates JetStream options
   JetStreamOptions({
     this.apiPrefix = '\$JS.API',
     this.timeout = const Duration(seconds: 5),
@@ -54,6 +55,7 @@ class PubAck {
   /// JetStream domain
   final String? domain;
 
+  /// Creates a publish acknowledgment
   PubAck({
     required this.stream,
     required this.seq,
@@ -61,6 +63,7 @@ class PubAck {
     this.domain,
   });
 
+  /// Creates a publish acknowledgment from JSON
   factory PubAck.fromJson(Map<String, dynamic> json) {
     return PubAck(
       stream: json['stream'] as String,
@@ -70,6 +73,7 @@ class PubAck {
     );
   }
 
+  /// Converts the publish acknowledgment to JSON
   Map<String, dynamic> toJson() {
     return {
       'stream': stream,
@@ -100,6 +104,7 @@ class JetStreamPublishOptions {
   /// Custom headers to add
   final Map<String, String>? headers;
 
+  /// Creates JetStream publish options
   JetStreamPublishOptions({
     this.expectedStream,
     this.expectedLastMsgId,
@@ -115,6 +120,7 @@ class JetStreamClient {
   final Client _nc;
   final JetStreamOptions _opts;
 
+  /// Creates a JetStream client
   JetStreamClient(this._nc, [JetStreamOptions? opts])
       : _opts = opts ?? JetStreamOptions();
 
