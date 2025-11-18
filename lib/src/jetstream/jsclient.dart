@@ -15,6 +15,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:mutex/mutex.dart';
+
 import '../client.dart';
 import '../message.dart';
 import '../inbox.dart';
@@ -119,6 +121,11 @@ class JetStreamPublishOptions {
 class JetStreamClient {
   final Client _nc;
   final JetStreamOptions _opts;
+  
+  // MuxSubscription fields for publish acknowledgments
+  final _mutex = Mutex();
+  String? _ackInboxPrefix;
+  Subscription? _ackSub;
 
   /// Creates a JetStream client
   JetStreamClient(this._nc, [JetStreamOptions? opts])
@@ -130,6 +137,16 @@ class JetStreamClient {
       return '\$JS.${_opts.domain}.API';
     }
     return _opts.apiPrefix;
+  }
+
+  /// Initialize the MuxSubscription for publish acknowledgments if not already done
+  void _initAckSubscription() {
+    if (_ackInboxPrefix == null) {
+      // Create a unique prefix for this JetStream client's acknowledgments
+      _ackInboxPrefix = '${_nc.inboxPrefix}.${Nuid().next()}';
+      // Subscribe to all acknowledgments using a wildcard
+      _ackSub = _nc.sub('$_ackInboxPrefix.>');
+    }
   }
 
   /// Publish a message to a subject and wait for JetStream acknowledgment
@@ -167,20 +184,30 @@ class JetStreamClient {
       });
     }
 
-    // Create an inbox for the response
-    final inbox = newInbox(inboxPrefix: _nc.inboxPrefix);
-    final sub = _nc.sub(inbox);
-
+    // Acquire mutex to ensure thread-safe access to the MuxSubscription
+    await _mutex.acquire();
+    
     try {
+      // Initialize the MuxSubscription if needed
+      _initAckSubscription();
+      
+      // Generate a unique inbox for this specific publish
+      final inbox = '$_ackInboxPrefix.${Nuid().next()}';
+      
       // Publish with headers and reply-to
       await _nc.pub(subject, data, replyTo: inbox, header: header);
-
-      // Wait for the acknowledgment
-      final response =
-          await sub.stream.first.timeout(_opts.timeout, onTimeout: () {
-        throw TimeoutException(
-            'JetStream publish acknowledgment timeout: ${_opts.timeout}');
-      });
+      
+      // Wait for the acknowledgment on the shared subscription
+      Message response;
+      do {
+        response = await _ackSub!.stream
+            .take(1)
+            .single
+            .timeout(_opts.timeout, onTimeout: () {
+          throw TimeoutException(
+              'JetStream publish acknowledgment timeout: ${_opts.timeout}');
+        });
+      } while (response.subject != inbox);
 
       // Parse the response
       final responseData = utf8.decode(response.byte);
@@ -194,7 +221,7 @@ class JetStreamClient {
 
       return PubAck.fromJson(json);
     } finally {
-      _nc.unSub(sub);
+      _mutex.release();
     }
   }
 
@@ -263,6 +290,16 @@ class JetStreamClient {
 
   /// Get JetStream options
   JetStreamOptions get options => _opts;
+
+  /// Dispose the JetStream client and cleanup resources
+  /// This will unsubscribe from the MuxSubscription if it was created
+  void dispose() {
+    if (_ackSub != null) {
+      _nc.unSub(_ackSub!);
+      _ackSub = null;
+      _ackInboxPrefix = null;
+    }
+  }
 }
 
 /// JetStream subscription for pull consumers
