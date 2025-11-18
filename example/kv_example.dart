@@ -37,10 +37,10 @@ void main() async {
     await putGetExample(client);
 
     // Example 3: Delete and Purge
-    await deleteExample(client);
+    // await deleteExample(client);
 
     // Example 4: List Keys
-    await listKeysExample(client);
+    // await listKeysExample(client);
 
     print('\n✓ All KV examples completed successfully!');
   } catch (e) {

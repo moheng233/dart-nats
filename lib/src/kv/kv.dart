@@ -158,15 +158,23 @@ class Kv {
     final header = Header();
     header.add(_kvOperationHeader, 'PUT');
 
-    final ack = await _js.publish(
+    final sw = Stopwatch()..start();
+    try {
+      final ack = await _js.publish(
       subject,
       value,
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'PUT',
       }),
     );
-
-    return ack.seq;
+      sw.stop();
+      print('KV PUT $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
+      return ack.seq;
+    } finally {
+      if (sw.isRunning) {
+        sw.stop();
+      }
+    }
   }
 
   /// Puts a string value for a key
@@ -180,6 +188,7 @@ class Kv {
 
     final subject = '\$KV.$_bucket.$key';
 
+    final sw = Stopwatch()..start();
     try {
       // Request last message for the key
       final requestSubject = '\$JS.API.DIRECT.GET.KV_$_bucket';
@@ -192,9 +201,13 @@ class Kv {
         Uint8List.fromList(utf8.encode(request)),
         timeout: Duration(seconds: 5),
       );
-
-      return _parseKvEntry(response, key);
+      sw.stop();
+      final entry = _parseKvEntry(response, key);
+      print('KV GET $_bucket:$key revision=${entry?.revision ?? 'N/A'} took ${sw.elapsedMilliseconds} ms');
+      return entry;
     } catch (e) {
+      sw.stop();
+      print('KV GET $_bucket:$key failed took ${sw.elapsedMilliseconds} ms');
       return null;
     }
   }
@@ -204,13 +217,20 @@ class Kv {
     _validateKey(key);
 
     final subject = '\$KV.$_bucket.$key';
-    await _js.publish(
+    final sw = Stopwatch()..start();
+    try {
+      final ack = await _js.publish(
       subject,
       Uint8List(0),
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'DEL',
       }),
     );
+      sw.stop();
+      print('KV DEL $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
+    } finally {
+      if (sw.isRunning) sw.stop();
+    }
   }
 
   /// Purges all values for a key (keeping only delete marker)
@@ -218,13 +238,20 @@ class Kv {
     _validateKey(key);
 
     final subject = '\$KV.$_bucket.$key';
-    await _js.publish(
+    final sw = Stopwatch()..start();
+    try {
+      final ack = await _js.publish(
       subject,
       Uint8List(0),
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'PURGE',
       }),
     );
+      sw.stop();
+      print('KV PURGE $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
+    } finally {
+      if (sw.isRunning) sw.stop();
+    }
   }
 
   /// Lists all keys in the bucket
@@ -236,6 +263,7 @@ class Kv {
 
     final seen = <String>{};
 
+    final sw = Stopwatch()..start();
     try {
       await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
         if (msg.subject != null) {
@@ -246,10 +274,12 @@ class Kv {
           }
         }
       }
-    } on TimeoutException {
+      } on TimeoutException {
       // No more messages
     } finally {
       _js.nc.unSub(sub);
+      sw.stop();
+      print('KV KEYS $_bucket enumeration took ${sw.elapsedMilliseconds} ms');
     }
   }
 
