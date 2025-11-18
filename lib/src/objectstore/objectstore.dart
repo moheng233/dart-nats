@@ -41,7 +41,7 @@ class Objm {
   Objm._(this._jsm, this._js);
 
   /// Creates an object store manager from a NATS client
-  static Future<Objm> fromClient(Client nc) async {
+  static Future<Objm> fromClient(NatsClient nc) async {
     final jsm = await jetstreamManager(nc, JetStreamManagerOptions());
     final js = jetstream(nc);
     return Objm._(jsm, js);

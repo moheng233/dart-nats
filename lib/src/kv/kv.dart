@@ -39,7 +39,7 @@ class Kvm {
   Kvm._(this._jsm, this._js);
 
   /// Creates a KV manager from a NATS client
-  static Future<Kvm> fromClient(Client nc) async {
+  static Future<Kvm> fromClient(NatsClient nc) async {
     final jsm = await jetstreamManager(nc, JetStreamManagerOptions());
     final js = jetstream(nc);
     return Kvm._(jsm, js);
@@ -158,23 +158,14 @@ class Kv {
     final header = Header();
     header.add(_kvOperationHeader, 'PUT');
 
-    final sw = Stopwatch()..start();
-    try {
-      final ack = await _js.publish(
+    final ack = await _js.publish(
       subject,
       value,
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'PUT',
       }),
     );
-      sw.stop();
-      print('KV PUT $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
-      return ack.seq;
-    } finally {
-      if (sw.isRunning) {
-        sw.stop();
-      }
-    }
+    return ack.seq;
   }
 
   /// Puts a string value for a key
@@ -188,28 +179,19 @@ class Kv {
 
     final subject = '\$KV.$_bucket.$key';
 
-    final sw = Stopwatch()..start();
-    try {
-      // Request last message for the key
-      final requestSubject = '\$JS.API.DIRECT.GET.KV_$_bucket';
-      final request = jsonEncode({
-        'last_by_subj': subject,
-      });
+    // Request last message for the key
+    final requestSubject = '\$JS.API.DIRECT.GET.KV_$_bucket';
+    final request = jsonEncode({
+      'last_by_subj': subject,
+    });
 
-      final response = await _js.nc.request(
-        requestSubject,
-        Uint8List.fromList(utf8.encode(request)),
-        timeout: Duration(seconds: 5),
-      );
-      sw.stop();
-      final entry = _parseKvEntry(response, key);
-      print('KV GET $_bucket:$key revision=${entry?.revision ?? 'N/A'} took ${sw.elapsedMilliseconds} ms');
-      return entry;
-    } catch (e) {
-      sw.stop();
-      print('KV GET $_bucket:$key failed took ${sw.elapsedMilliseconds} ms');
-      return null;
-    }
+    final response = await _js.nc.request(
+      requestSubject,
+      Uint8List.fromList(utf8.encode(request)),
+      timeout: Duration(seconds: 5),
+    );
+    final entry = _parseKvEntry(response, key);
+    return entry;
   }
 
   /// Deletes a key
@@ -217,20 +199,13 @@ class Kv {
     _validateKey(key);
 
     final subject = '\$KV.$_bucket.$key';
-    final sw = Stopwatch()..start();
-    try {
-      final ack = await _js.publish(
+    await _js.publish(
       subject,
       Uint8List(0),
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'DEL',
       }),
     );
-      sw.stop();
-      print('KV DEL $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
-    } finally {
-      if (sw.isRunning) sw.stop();
-    }
   }
 
   /// Purges all values for a key (keeping only delete marker)
@@ -238,20 +213,13 @@ class Kv {
     _validateKey(key);
 
     final subject = '\$KV.$_bucket.$key';
-    final sw = Stopwatch()..start();
-    try {
-      final ack = await _js.publish(
+    await _js.publish(
       subject,
       Uint8List(0),
       options: JetStreamPublishOptions(headers: {
         _kvOperationHeader: 'PURGE',
       }),
     );
-      sw.stop();
-      print('KV PURGE $_bucket:$key seq=${ack.seq} took ${sw.elapsedMilliseconds} ms');
-    } finally {
-      if (sw.isRunning) sw.stop();
-    }
   }
 
   /// Lists all keys in the bucket
@@ -263,23 +231,14 @@ class Kv {
 
     final seen = <String>{};
 
-    final sw = Stopwatch()..start();
-    try {
-      await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
-        if (msg.subject != null) {
-          final key = msg.subject!.substring('\$KV.$_bucket.'.length);
-          if (!seen.contains(key)) {
-            seen.add(key);
-            yield key;
-          }
+    await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
+      if (msg.subject != null) {
+        final key = msg.subject!.substring('\$KV.$_bucket.'.length);
+        if (!seen.contains(key)) {
+          seen.add(key);
+          yield key;
         }
       }
-      } on TimeoutException {
-      // No more messages
-    } finally {
-      _js.nc.unSub(sub);
-      sw.stop();
-      print('KV KEYS $_bucket enumeration took ${sw.elapsedMilliseconds} ms');
     }
   }
 
@@ -302,7 +261,9 @@ class Kv {
   }
 
   void _validateKey(String key) {
-    if (key.startsWith('.') || key.endsWith('.') || !_validKeyRe.hasMatch(key)) {
+    if (key.startsWith('.') ||
+        key.endsWith('.') ||
+        !_validKeyRe.hasMatch(key)) {
       throw ArgumentError('Invalid key: $key');
     }
   }
@@ -317,7 +278,7 @@ class Kv {
 
     // Extract timestamp
     final tsStr = msg.header?.get('Nats-Time-Stamp');
-    final created = tsStr != null 
+    final created = tsStr != null
         ? DateTime.tryParse(tsStr) ?? DateTime.now()
         : DateTime.now();
 

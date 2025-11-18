@@ -20,7 +20,7 @@ import 'package:dart_nats/dart_nats.dart';
 
 void main() async {
   // Create a NATS client
-  var client = Client();
+  var client = NatsClient();
   
   try {
     // Connect to NATS server
@@ -54,7 +54,7 @@ void main() async {
 }
 
 /// Example 1: Stream Management
-Future<void> streamManagementExample(Client client) async {
+Future<void> streamManagementExample(NatsClient client) async {
   print('\n=== Stream Management Example ===');
 
   // Create a JetStream manager
@@ -117,7 +117,7 @@ Future<void> streamManagementExample(Client client) async {
 }
 
 /// Example 2: Publishing with JetStream
-Future<void> publishExample(Client client) async {
+Future<void> publishExample(NatsClient client) async {
   print('\n=== Publishing Example ===');
 
   // Create a JetStream client
@@ -154,7 +154,7 @@ Future<void> publishExample(Client client) async {
 }
 
 /// Example 3: Pull Consumer
-Future<void> pullConsumerExample(Client client) async {
+Future<void> pullConsumerExample(NatsClient client) async {
   print('\n=== Pull Consumer Example ===');
 
   final jsm = await jetstreamManager(client);
@@ -210,7 +210,7 @@ Future<void> pullConsumerExample(Client client) async {
 }
 
 /// Example 4: Push Consumer
-Future<void> pushConsumerExample(Client client) async {
+Future<void> pushConsumerExample(NatsClient client) async {
   print('\n=== Push Consumer Example ===');
 
   final jsm = await jetstreamManager(client);

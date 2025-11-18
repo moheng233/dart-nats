@@ -20,7 +20,7 @@ import 'package:dart_nats/dart_nats.dart';
 
 void main() async {
   // Create a NATS client
-  var client = Client();
+  var client = NatsClient();
 
   try {
     // Connect to NATS server
@@ -56,7 +56,7 @@ void main() async {
 }
 
 /// Example 1: Create Object Store
-Future<void> createStoreExample(Client client) async {
+Future<void> createStoreExample(NatsClient client) async {
   print('\n=== Creating Object Store ===');
 
   // Create Object Store manager
@@ -89,7 +89,7 @@ Future<void> createStoreExample(Client client) async {
 }
 
 /// Example 2: Put and Get Objects
-Future<void> putGetExample(Client client) async {
+Future<void> putGetExample(NatsClient client) async {
   print('\n=== Put and Get Objects ===');
 
   final objm = await Objm.fromClient(client);
@@ -138,7 +138,7 @@ Future<void> putGetExample(Client client) async {
 }
 
 /// Example 3: Large Object with Chunking
-Future<void> largeObjectExample(Client client) async {
+Future<void> largeObjectExample(NatsClient client) async {
   print('\n=== Large Object with Chunking ===');
 
   final objm = await Objm.fromClient(client);
@@ -184,7 +184,7 @@ Future<void> largeObjectExample(Client client) async {
 }
 
 /// Example 4: List Objects
-Future<void> listObjectsExample(Client client) async {
+Future<void> listObjectsExample(NatsClient client) async {
   print('\n=== Listing Objects ===');
 
   final objm = await Objm.fromClient(client);
@@ -215,7 +215,7 @@ Future<void> listObjectsExample(Client client) async {
 }
 
 /// Example 5: Delete Objects
-Future<void> deleteExample(Client client) async {
+Future<void> deleteExample(NatsClient client) async {
   print('\n=== Delete Objects ===');
 
   final objm = await Objm.fromClient(client);

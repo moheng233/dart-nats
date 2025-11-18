@@ -12,7 +12,7 @@ class Subscription<T> {
   ///subject and queuegroup of this subscription
   final String? subject, queueGroup;
 
-  final Client _client;
+  final NatsClient _client;
 
   late StreamController<Message<T>> _controller;
 

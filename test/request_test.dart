@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('simple', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'), retryInterval: 1);
       var sub = client.sub('subject1');
       client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
@@ -17,14 +17,14 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('respond', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service = server.sub('service');
       service.stream.listen((m) {
         m.respondString('respond');
       });
 
-      var requester = Client();
+      var requester = NatsClient();
       await requester.connect(Uri.parse('ws://localhost:8080'));
       var inbox = newInbox();
       var inboxSub = requester.sub(inbox);
@@ -38,14 +38,14 @@ void main() {
       expect(receive.string, equals('respond'));
     });
     test('request', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service = server.sub('service');
       unawaited(service.stream.first.then((m) {
         m.respond(Uint8List.fromList('respond'.codeUnits));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var receive = await client.request(
           'service', Uint8List.fromList('request'.codeUnits));
@@ -55,14 +55,14 @@ void main() {
       expect(receive.string, equals('respond'));
     });
     test('custom inbox', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service = server.sub('service');
       unawaited(service.stream.first.then((m) {
         m.respond(Uint8List.fromList('respond'.codeUnits));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       client.inboxPrefix = '_INBOX.test_test';
       await client.connect(Uri.parse('ws://localhost:8080'));
       var receive = await client.request(
@@ -73,7 +73,7 @@ void main() {
       expect(receive.string, equals('respond'));
     });
     test('request with timeout', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service = server.sub('service');
       unawaited(service.stream.first.then((m) {
@@ -81,7 +81,7 @@ void main() {
         m.respond(Uint8List.fromList('respond'.codeUnits));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var receive = await client.request(
           'service', Uint8List.fromList('request'.codeUnits),
@@ -92,7 +92,7 @@ void main() {
       expect(receive.string, equals('respond'));
     });
     test('request with timeout exception', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service = server.sub('service');
       unawaited(service.stream.first.then((m) {
@@ -100,7 +100,7 @@ void main() {
         m.respond(Uint8List.fromList('respond'.codeUnits));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       var gotit = false;
       await client.connect(Uri.parse('ws://localhost:8080'));
       try {
@@ -115,7 +115,7 @@ void main() {
       expect(gotit, equals(true));
     });
     test('future request to 2 service', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
       var service1 = server.sub('service1');
       service1.stream.listen((m) {
@@ -126,7 +126,7 @@ void main() {
         m.respond(Uint8List.fromList('respond2'.codeUnits));
       });
 
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       Future<Message> receive1;
       Future<Message> receive2;

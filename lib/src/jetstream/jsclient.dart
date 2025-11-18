@@ -15,8 +15,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:mutex/mutex.dart';
-
 import '../client.dart';
 import '../message.dart';
 import '../inbox.dart';
@@ -119,14 +117,9 @@ class JetStreamPublishOptions {
 
 /// JetStream client for publishing and consuming messages
 class JetStreamClient {
-  final Client _nc;
+  final NatsClient _nc;
   final JetStreamOptions _opts;
   
-  // MuxSubscription fields for publish acknowledgments
-  final _mutex = Mutex();
-  String? _ackInboxPrefix;
-  Subscription? _ackSub;
-
   /// Creates a JetStream client
   JetStreamClient(this._nc, [JetStreamOptions? opts])
       : _opts = opts ?? JetStreamOptions();
@@ -137,16 +130,6 @@ class JetStreamClient {
       return '\$JS.${_opts.domain}.API';
     }
     return _opts.apiPrefix;
-  }
-
-  /// Initialize the MuxSubscription for publish acknowledgments if not already done
-  void _initAckSubscription() {
-    if (_ackInboxPrefix == null) {
-      // Create a unique prefix for this JetStream client's acknowledgments
-      _ackInboxPrefix = '${_nc.inboxPrefix}.${Nuid().next()}';
-      // Subscribe to all acknowledgments using a wildcard
-      _ackSub = _nc.sub('$_ackInboxPrefix.>');
-    }
   }
 
   /// Publish a message to a subject and wait for JetStream acknowledgment
@@ -184,45 +167,21 @@ class JetStreamClient {
       });
     }
 
-    // Acquire mutex to ensure thread-safe access to the MuxSubscription
-    await _mutex.acquire();
-    
-    try {
-      // Initialize the MuxSubscription if needed
-      _initAckSubscription();
-      
-      // Generate a unique inbox for this specific publish
-      final inbox = '$_ackInboxPrefix.${Nuid().next()}';
-      
-      // Publish with headers and reply-to
-      await _nc.pub(subject, data, replyTo: inbox, header: header);
-      
-      // Wait for the acknowledgment on the shared subscription
-      Message response;
-      do {
-        response = await _ackSub!.stream
-            .take(1)
-            .single
-            .timeout(_opts.timeout, onTimeout: () {
-          throw TimeoutException(
-              'JetStream publish acknowledgment timeout: ${_opts.timeout}');
-        });
-      } while (response.subject != inbox);
+    // Use the client's request method which handles inbox multiplexing
+    final response = await _nc.request(subject, data,
+        timeout: _opts.timeout, header: header);
 
-      // Parse the response
-      final responseData = utf8.decode(response.byte);
-      final Map<String, dynamic> json = jsonDecode(responseData);
+    // Parse the response
+    final responseData = utf8.decode(response.byte);
+    final Map<String, dynamic> json = jsonDecode(responseData);
 
-      // Check for errors
-      if (json.containsKey('error')) {
-        final error = ApiError.fromJson(json['error'] as Map<String, dynamic>);
-        throw JetStreamApiException(error);
-      }
-
-      return PubAck.fromJson(json);
-    } finally {
-      _mutex.release();
+    // Check for errors
+    if (json.containsKey('error')) {
+      final error = ApiError.fromJson(json['error'] as Map<String, dynamic>);
+      throw JetStreamApiException(error);
     }
+
+    return PubAck.fromJson(json);
   }
 
   /// Publish a string message
@@ -286,7 +245,7 @@ class JetStreamClient {
   }
 
   /// Get NATS connection
-  Client get nc => _nc;
+  NatsClient get nc => _nc;
 
   /// Get JetStream options
   JetStreamOptions get options => _opts;
@@ -294,17 +253,13 @@ class JetStreamClient {
   /// Dispose the JetStream client and cleanup resources
   /// This will unsubscribe from the MuxSubscription if it was created
   void dispose() {
-    if (_ackSub != null) {
-      _nc.unSub(_ackSub!);
-      _ackSub = null;
-      _ackInboxPrefix = null;
-    }
+    // No cleanup needed since we now use the client's request multiplexing
   }
 }
 
 /// JetStream subscription for pull consumers
 class JetStreamSubscription {
-  final Client _nc;
+  final NatsClient _nc;
   final String _stream;
   final String _consumer;
   final JetStreamClient _js;
@@ -373,6 +328,6 @@ class JetStreamSubscription {
 }
 
 /// Factory function to create a JetStream client
-JetStreamClient jetstream(Client nc, [JetStreamOptions? opts]) {
+JetStreamClient jetstream(NatsClient nc, [JetStreamOptions? opts]) {
   return JetStreamClient(nc, opts);
 }

@@ -73,7 +73,7 @@ class Message<T> {
 
   /// subject  and replyto
   final String? subject, replyTo;
-  final Client _client;
+  final NatsClient _client;
 
   /// message header
   final Header? header;

@@ -8,7 +8,7 @@ var port = 8084;
 void main() {
   group('all', () {
     test('token', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8084'),
           connectOption: ConnectOption(authToken: 'mytoken'));
       var sub = client.sub('subject1');
@@ -22,7 +22,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('user', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8085'),
           connectOption: ConnectOption(user: 'foo', pass: 'bar'));
       var sub = client.sub('subject1');
@@ -36,7 +36,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('jwt', () async {
-      var client = Client();
+      var client = NatsClient();
       client.seed =
           'SUAJGSBAKQHGYI7ZVKVR6WA7Z5U52URHKGGT6ZICUJXMG4LCTC2NTLQSF4';
       await client.connect(
@@ -54,7 +54,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('nkey', () async {
-      var client = Client();
+      var client = NatsClient();
       client.seed =
           'SUACSSL3UAHUDXKFSNVUZRF5UHPMWZ6BFDTJ7M6USDXIEDNPPQYYYCU3VY';
       await client.connect(

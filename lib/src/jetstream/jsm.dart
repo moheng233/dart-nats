@@ -40,7 +40,7 @@ class JetStreamManagerOptions extends JetStreamOptions {
 
 /// JetStream manager for managing streams and consumers
 class JetStreamManager {
-  final Client _nc;
+  final NatsClient _nc;
   final JetStreamManagerOptions _opts;
 
   JetStreamManager._(this._nc, this._opts);
@@ -349,7 +349,7 @@ class JetStreamManager {
   }
 
   /// Get NATS connection
-  Client get nc => _nc;
+  NatsClient get nc => _nc;
 
   /// Get JetStream options
   JetStreamManagerOptions get options => _opts;
@@ -357,7 +357,7 @@ class JetStreamManager {
 
 /// Factory function to create a JetStream manager
 Future<JetStreamManager> jetstreamManager(
-  Client nc, [
+  NatsClient nc, [
   JetStreamManagerOptions? opts,
 ]) async {
   final options = opts ?? JetStreamManagerOptions();

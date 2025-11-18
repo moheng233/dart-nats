@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('simple', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
@@ -42,7 +42,7 @@ void main() {
       expect(dup, false);
     });
     test('pub with Uint8List', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var msgByte = Uint8List.fromList([1, 2, 3, 129, 130]);
@@ -52,7 +52,7 @@ void main() {
       expect(msg.byte, equals(msgByte));
     });
     test('pub with Uint8List include return and  new line', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var msgByte = Uint8List.fromList(
@@ -63,7 +63,7 @@ void main() {
       expect(msg.byte, equals(msgByte));
     });
     test('byte huge data', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var msgByte = Uint8List.fromList(
@@ -74,7 +74,7 @@ void main() {
       expect(msg.byte, equals(msgByte));
     });
     test('UTF8', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var thaiString = utf8.encode('ทดสอบ');
@@ -84,7 +84,7 @@ void main() {
       expect(msg.byte, equals(thaiString));
     });
     test('pubString ascii', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       client.pubString('subject1', 'testtesttest');
@@ -93,7 +93,7 @@ void main() {
       expect(msg.string, equals('testtesttest'));
     });
     test('pubString Thai', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       client.pubString('subject1', 'ทดสอบ');
@@ -102,7 +102,7 @@ void main() {
       expect(msg.string, equals('ทดสอบ'));
     });
     test('delay connect', () async {
-      var client = Client();
+      var client = NatsClient();
       var sub = client.sub('subject1');
       client.pubString('subject1', 'message1');
       await client.connect(Uri.parse('ws://localhost:8080'));
@@ -111,7 +111,7 @@ void main() {
       expect(msg.string, equals('message1'));
     });
     test('pub with no buffer ', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       await Future.delayed(Duration(seconds: 1));
@@ -121,7 +121,7 @@ void main() {
       expect(msg.string, equals('message1'));
     });
     test('multiple sub ', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub1 = client.sub('subject1');
       var sub2 = client.sub('subject2');
@@ -135,7 +135,7 @@ void main() {
       expect(msg2.string, equals('message2'));
     });
     test('Wildcard sub * ', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1.*');
       client.pubString('subject1.1', 'message1');
@@ -148,7 +148,7 @@ void main() {
       expect(msg2.string, equals('message2'));
     });
     test('Wildcard sub > ', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1.>');
       client.pubString('subject1.a.1', 'message1');
@@ -161,7 +161,7 @@ void main() {
       expect(msg2.string, equals('message2'));
     });
     test('unsub after connect', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       client.pubString('subject1', 'message1');
@@ -178,7 +178,7 @@ void main() {
       await client.close();
     });
     test('unsub before connect', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       client.unSub(sub);
@@ -189,7 +189,7 @@ void main() {
       expect(1, 1);
     });
     test('get max payload', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
 
       //todo wait for connected
@@ -200,7 +200,7 @@ void main() {
       expect(max, isNotNull);
     });
     test('sub continuous msg', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('sub');
       var r = 0;
@@ -217,7 +217,7 @@ void main() {
       expect(r, equals(iteration));
     });
     test('sub defect 13 binary', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('sub');
       var r = 0;

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:mutex/mutex.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'common.dart';
@@ -11,6 +10,7 @@ import 'inbox.dart';
 import 'message.dart';
 import 'nkeys.dart';
 import 'subscription.dart';
+import 'transport.dart';
 
 enum _ReceiveState {
   idle, //op=msg -> msg
@@ -58,13 +58,11 @@ class _Pub {
   _Pub(this.subject, this.data, this.replyTo);
 }
 
-///NATS client
-class Client {
+/// NATS client (concrete): transport-agnostic implementation
+class NatsClient {
   var _ackStream = StreamController<bool>.broadcast();
   _ClientStatus _clientStatus = _ClientStatus.init;
-  WebSocketChannel? _wsChannel;
-  Socket? _tcpSocket;
-  SecureSocket? _secureSocket;
+  Transport? _transport;
   bool _tlsRequired = false;
   bool _retry = false;
 
@@ -151,8 +149,9 @@ class Client {
     }
   }
 
-  ///NATS Client Constructor
-  Client() {
+  ///NATS Client Constructor (factory default)
+  /// Default constructor
+  NatsClient() {
     _steamHandle();
   }
 
@@ -295,63 +294,46 @@ class Client {
         case 'wss':
         case 'ws':
           try {
-            _wsChannel = WebSocketChannel.connect(uri);
+            var channel = WebSocketChannel.connect(uri);
+            _setStatus(Status.infoHandshake);
+            _setTransport(WebSocketTransport(channel));
           } catch (e) {
             return false;
           }
-          if (_wsChannel == null) {
-            return false;
-          }
-          _setStatus(Status.infoHandshake);
-          _wsChannel?.stream.listen((event) {
-            if (_channelStream.isClosed) return;
-            _channelStream.add(event);
-          }, onDone: () {
-            _setStatus(Status.disconnected);
-          }, onError: (e) {
-            close();
-            wsErrorHandler(e);
-          });
           return true;
         case 'nats':
           var port = uri.port;
           if (port == 0) {
             port = 4222;
           }
-          _tcpSocket = await Socket.connect(
+          var sock = await Socket.connect(
             uri.host,
             port,
             timeout: Duration(seconds: timeout),
           );
-          if (_tcpSocket == null) {
-            return false;
-          }
+          
           _setStatus(Status.infoHandshake);
-          _tcpSocket!.listen((event) {
-            if (_secureSocket == null) {
-              if (_channelStream.isClosed) return;
-              _channelStream.add(event);
-            }
-          }).onDone(() {
-            _setStatus(Status.disconnected);
-          });
+          _setTransport(SocketTransport(sock));
           return true;
         case 'tls':
-          _tlsRequired = true;
           var port = uri.port;
           if (port == 0) {
             port = 4443;
           }
-          _tcpSocket = await Socket.connect(uri.host, port,
+            var sock = await Socket.connect(uri.host, port,
               timeout: Duration(seconds: timeout));
-          if (_tcpSocket == null) break;
+          
           _setStatus(Status.infoHandshake);
-          _tcpSocket!.listen((event) {
-            if (_secureSocket == null) {
-              if (_channelStream.isClosed) return;
-              _channelStream.add(event);
-            }
-          });
+          // Immediately secure the socket for TLS scheme
+          var secureSocket = await SecureSocket.secure(
+            sock,
+            context: this.securityContext,
+            onBadCertificate: (certificate) {
+              if (acceptBadCert) return true;
+              return false;
+            },
+          );
+          _setTransport(SecureSocketTransport(secureSocket));
           return true;
         default:
           throw Exception(NatsException('schema ${uri.scheme} not support'));
@@ -359,7 +341,21 @@ class Client {
     } catch (e) {
       return false;
     }
-    return false;
+  }
+
+  void _setTransport(Transport t) {
+    // cancel old transport and listen to new stream
+    _transport?.close();
+    _transport = t;
+    _transport?.stream.listen((event) {
+      if (_channelStream.isClosed) return;
+      _channelStream.add(event);
+    }, onDone: () {
+      _setStatus(Status.disconnected);
+    }, onError: (e) {
+      _setStatus(Status.disconnected);
+      throw e;
+    });
   }
 
   void _backendSubscriptAll() {
@@ -427,10 +423,11 @@ class Client {
           throw Exception(NatsException('require TLS but server not required'));
         }
 
-        if ((_info.tlsRequired ?? false) && _tcpSocket != null) {
+        if ((_info.tlsRequired ?? false) && _transport is SocketTransport) {
           _setStatus(Status.tlsHandshake);
+          var oldSocket = ( _transport as SocketTransport).rawSocket;
           var secureSocket = await SecureSocket.secure(
-            _tcpSocket!,
+            oldSocket,
             context: this.securityContext,
             onBadCertificate: (certificate) {
               if (acceptBadCert) return true;
@@ -438,20 +435,7 @@ class Client {
             },
           );
 
-          _secureSocket = secureSocket;
-          secureSocket.listen((event) {
-            if (_channelStream.isClosed) return;
-            _channelStream.add(event);
-          }, onError: (error) {
-            print('Socket error: $error');
-            _setStatus(Status.disconnected);
-
-            if (error is TlsException) {
-              this._retry = false;
-              this.close();
-              throw Exception(NatsException(error.message));
-            }
-          });
+          _setTransport(SecureSocketTransport(secureSocket));
         }
 
         await _sign();
@@ -465,6 +449,10 @@ class Client {
           }
         } else {
           _setStatus(Status.connected);
+        }
+        if (_inboxSubPrefix == null) {
+          _inboxSubPrefix = inboxPrefix + '.' + Nuid().next();
+          _inboxSub = sub<dynamic>(_inboxSubPrefix! + '.>');
         }
         _backendSubscriptAll();
         _flushPubBuffer();
@@ -519,6 +507,12 @@ class Client {
     if (_subs[sid] != null) {
       _subs[sid]?.add(Message(subject, sid, payload, this, replyTo: replyTo));
     }
+
+    if (_pendingRequests.containsKey(subject)) {
+      var completer = _pendingRequests.remove(subject);
+      _requestTimers.remove(subject)?.cancel();
+      completer?.complete(Message(subject, sid, payload, this, replyTo: replyTo));
+    }
   }
 
   void _processHMsg() {
@@ -550,6 +544,13 @@ class Client {
       var msg = Message(subject, sid, payload, this,
           replyTo: replyTo, header: Header.fromBytes(header));
       _subs[sid]?.add(msg);
+    }
+
+    if (_pendingRequests.containsKey(subject)) {
+      var completer = _pendingRequests.remove(subject);
+      _requestTimers.remove(subject)?.cancel();
+      completer?.complete(Message(subject, sid, payload, this,
+          replyTo: replyTo, header: Header.fromBytes(header)));
     }
   }
 
@@ -713,32 +714,17 @@ class Client {
      if (status == Status.closed || status == Status.disconnected) {
       return;
      }
-    if (_wsChannel != null) {
-      // if (_wsChannel?.closeCode == null) return;
-      _wsChannel?.sink.add(utf8.encode(str + '\r\n'));
-      return;
-    } else if (_secureSocket != null) {
-      _secureSocket!.add(utf8.encode(str + '\r\n'));
-      return;
-    } else if (_tcpSocket != null) {
-      _tcpSocket!.add(utf8.encode(str + '\r\n'));
+    if (_transport != null) {
+      _transport!.add(utf8.encode(str + '\r\n'));
       return;
     }
     throw Exception(NatsException('no connection'));
   }
 
   void _addByte(List<int> msg) {
-    if (_wsChannel != null) {
-      _wsChannel?.sink.add(msg);
-      _wsChannel?.sink.add(utf8.encode('\r\n'));
-      return;
-    } else if (_secureSocket != null) {
-      _secureSocket?.add(msg);
-      _secureSocket?.add(utf8.encode('\r\n'));
-      return;
-    } else if (_tcpSocket != null) {
-      _tcpSocket?.add(msg);
-      _tcpSocket?.add(utf8.encode('\r\n'));
+    if (_transport != null) {
+      _transport?.add(msg);
+      _transport?.add(utf8.encode('\r\n'));
       return;
     }
     throw Exception(NatsException('no connection'));
@@ -759,9 +745,11 @@ class Client {
   String get inboxPrefix => _inboxPrefix;
 
   final _inboxs = <String, Subscription>{};
-  final _mutex = Mutex();
   String? _inboxSubPrefix;
   Subscription? _inboxSub;
+
+  final _pendingRequests = <String, Completer<Message>>{};
+  final _requestTimers = <String, Timer>{};
 
   /// Request will send a request payload and deliver the response message,
   /// TimeoutException on timeout.
@@ -780,45 +768,41 @@ class Client {
     Uint8List data, {
     Duration timeout = const Duration(seconds: 2),
     T Function(String)? jsonDecoder,
+    Header? header,
   }) async {
     if (!connected) {
       throw NatsException("request error: client not connected");
     }
-    Message resp;
-    //ensure no other request
-    await _mutex.acquire();
     //get registered json decoder
     if (T != dynamic && jsonDecoder == null) {
       jsonDecoder = _getJsonDecoder();
     }
 
     if (_inboxSubPrefix == null) {
-      if (inboxPrefix == '_INBOX') {
-        _inboxSubPrefix = inboxPrefix + '.' + Nuid().next();
-      } else {
-        _inboxSubPrefix = inboxPrefix;
-      }
-      _inboxSub = sub<T>(_inboxSubPrefix! + '.>', jsonDecoder: jsonDecoder);
+      _inboxSubPrefix = inboxPrefix + '.' + Nuid().next();
+      _inboxSub = sub<dynamic>(_inboxSubPrefix! + '.>');
     }
     var inbox = _inboxSubPrefix! + '.' + Nuid().next();
-    var stream = _inboxSub!.stream;
 
-    pub(subj, data, replyTo: inbox);
+    var completer = Completer<Message>();
+    _pendingRequests[inbox] = completer;
 
-    try {
-      do {
-        resp = await stream.take(1).single.timeout(timeout);
-      } while (resp.subject != inbox);
-    } on TimeoutException {
-      throw TimeoutException('request time > $timeout');
-    } finally {
-      _mutex.release();
-    }
+    var timer = Timer(timeout, () {
+      _pendingRequests.remove(inbox);
+      _requestTimers.remove(inbox);
+      completer.completeError(TimeoutException('request time > $timeout'));
+    });
+    _requestTimers[inbox] = timer;
+
+    pub(subj, data, replyTo: inbox, header: header);
+
+    var resp = await completer.future;
     var msg = Message<T>(
       resp.subject,
       resp.sid,
       resp.byte,
       this,
+      replyTo: resp.replyTo,
       header: resp.header,
       jsonDecoder: jsonDecoder,
     );
@@ -831,12 +815,14 @@ class Client {
     String data, {
     Duration timeout = const Duration(seconds: 2),
     T Function(String)? jsonDecoder,
+    Header? header,
   }) {
     return request<T>(
       subj,
       Uint8List.fromList(data.codeUnits),
       timeout: timeout,
       jsonDecoder: jsonDecoder,
+      header: header,
     );
   }
 
@@ -856,15 +842,15 @@ class Client {
     _setStatus(Status.closed);
     _backendSubs.forEach((_, s) => s = false);
     _inboxs.clear();
-    await _wsChannel?.sink.close();
-    _wsChannel = null;
-    await _secureSocket?.close();
-    _secureSocket = null;
-    await _tcpSocket?.close();
-    _tcpSocket = null;
+    await _transport?.close();
+    _transport = null;
     await _inboxSub?.close();
     _inboxSub = null;
     _inboxSubPrefix = null;
+    _requestTimers.forEach((_, timer) => timer.cancel());
+    _requestTimers.clear();
+    _pendingRequests.forEach((_, completer) => completer.completeError(RequestError('connection closed')));
+    _pendingRequests.clear();
     _buffer = [];
     _clientStatus = _ClientStatus.closed;
   }
@@ -888,7 +874,7 @@ class Client {
 
   /// close tcp connect Only for testing
   Future<void> tcpClose() async {
-    await _tcpSocket?.close();
+    await _transport?.close();
     _setStatus(Status.disconnected);
   }
 
@@ -908,4 +894,9 @@ class Client {
       }
     }
   }
+}
+
+/// Backward compatible Client alias
+class Client extends NatsClient {
+  Client() : super();
 }

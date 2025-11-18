@@ -227,3 +227,9 @@ class NkeysException implements Exception {
     return result;
   }
 }
+
+/// Request Exception
+class RequestError extends NatsException {
+  /// RequestError
+  RequestError(String message) : super(message);
+}

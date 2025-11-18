@@ -10,7 +10,7 @@ import 'model/student.dart';
 void main() {
   group('all', () {
     test('string to string', () async {
-      var client = Client();
+      var client = NatsClient();
 
       await client.connect(Uri.parse('nats://localhost:4222'),
           retryInterval: 1);
@@ -22,7 +22,7 @@ void main() {
     });
 
     test('sub', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'),
           retryInterval: 1);
       var sub = client.sub<Student>('subject1', jsonDecoder: json2Student);
@@ -35,7 +35,7 @@ void main() {
       expect(msg.data.score, student.score);
     });
     test('sub register jsonDecoder', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'),
           retryInterval: 1);
       client.registerJsonDecoder<Student>(json2Student);
@@ -49,7 +49,7 @@ void main() {
       expect(msg.data.score, student.score);
     });
     test('sub no type', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'),
           retryInterval: 1);
       var sub = client.sub('subject1', jsonDecoder: json2Student);
@@ -62,7 +62,7 @@ void main() {
       expect(msg.data.score, student.score);
     });
     test('sub no type no jsonDecoder', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'),
           retryInterval: 1);
       var sub = client.sub('subject1');
@@ -75,7 +75,7 @@ void main() {
       }
     });
     test('request', () async {
-      var server = Client();
+      var server = NatsClient();
       await server.connect(Uri.parse('nats://localhost:4222'));
       server.registerJsonDecoder<Student>(json2Student);
       var service = server.sub<Student>('service');
@@ -83,7 +83,7 @@ void main() {
         m.respondString(jsonEncode(m.data.toJson()));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       var s1 = Student('id', 'name', 1);
       await client.connect(Uri.parse('ws://localhost:8080'));
       var receive =
@@ -94,7 +94,7 @@ void main() {
       expect(s1.score, equals(s2.score));
     });
     test('request register jsonDecoder', () async {
-      var server = Client();
+      var server = NatsClient();
       server.registerJsonDecoder<Student>(json2Student);
       await server.connect(Uri.parse('nats://localhost:4222'));
       var service = server.sub<Student>('service');
@@ -102,7 +102,7 @@ void main() {
         m.respondString(jsonEncode(m.data.toJson()));
       }));
 
-      var client = Client();
+      var client = NatsClient();
       client.registerJsonDecoder<Student>(json2Student);
       var s1 = Student('id', 'name', 1);
       await client.connect(Uri.parse('ws://localhost:8080'));

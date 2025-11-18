@@ -144,7 +144,7 @@ void main() {
       header.add('Nats-Pending-Messages', '5');
 
       // Create a client (we won't use it for this test)
-      final client = Client();
+      final client = NatsClient();
       
       // Create a NATS message
       final msg = Message(
