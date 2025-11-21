@@ -97,7 +97,7 @@ void main() {
 
       final client = NatsClient();
       final s1 = Student('id', 'name', 1);
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final receive = await client.requestString(
         'service',
         jsonEncode(s1.toJson()),
@@ -121,7 +121,7 @@ void main() {
 
       final client = NatsClient()..registerJsonDecoder<Student>(json2Student);
       final s1 = Student('id', 'name', 1);
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final receive = await client.requestString<Student>(
         'service',
         jsonEncode(s1.toJson()),

@@ -9,7 +9,7 @@ void main() {
   group('all', () {
     test('simple', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       await client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
       final msg = await sub.stream.first;
@@ -44,7 +44,7 @@ void main() {
     });
     test('pub with Uint8List', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       final msgByte = Uint8List.fromList([1, 2, 3, 129, 130]);
       await client.pub('subject1', msgByte);
@@ -54,7 +54,7 @@ void main() {
     });
     test('pub with Uint8List include return and  new line', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       final msgByte = Uint8List.fromList([
         1,
@@ -79,7 +79,7 @@ void main() {
     });
     test('byte huge data', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       final msgByte = Uint8List.fromList(
         List<int>.generate(1024 + 1024 * 4, (i) => i % 256),
@@ -91,7 +91,7 @@ void main() {
     });
     test('UTF8', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       final thaiString = utf8.encode('ทดสอบ');
       await client.pub('subject1', Uint8List.fromList(thaiString));
@@ -101,7 +101,7 @@ void main() {
     });
     test('pubString ascii', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       await client.pubString('subject1', 'testtesttest');
       final msg = await sub.stream.first;
@@ -110,7 +110,7 @@ void main() {
     });
     test('pubString Thai', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       await client.pubString('subject1', 'ทดสอบ');
       final msg = await sub.stream.first;
@@ -121,14 +121,14 @@ void main() {
       final client = NatsClient();
       final sub = client.sub('subject1');
       await client.pubString('subject1', 'message1');
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final msg = await sub.stream.first;
       await client.close();
       expect(msg.string, equals('message1'));
     });
     test('pub with no buffer ', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1');
       await Future.delayed(const Duration(seconds: 1));
       await client.pubString('subject1', 'message1', buffer: false);
@@ -138,7 +138,7 @@ void main() {
     });
     test('multiple sub ', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub1 = client.sub('subject1');
       final sub2 = client.sub('subject2');
       await Future.delayed(const Duration(seconds: 1));
@@ -153,7 +153,7 @@ void main() {
     });
     test('Wildcard sub * ', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1.*');
       await client.pubString('subject1.1', 'message1');
       await client.pubString('subject1.2', 'message2');
@@ -166,7 +166,7 @@ void main() {
     });
     test('Wildcard sub > ', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('subject1.>');
       await client.pubString('subject1.a.1', 'message1');
       await client.pubString('subject1.b.2', 'message2');
@@ -179,7 +179,7 @@ void main() {
     });
     test('unsub after connect', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       var sub = client.sub('subject1');
       await client.pubString('subject1', 'message1');
       var msg = await sub.stream.first;
@@ -196,7 +196,7 @@ void main() {
     });
     test('unsub before connect', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       var sub = client.sub('subject1');
       client.unSub(sub);
 
@@ -207,7 +207,7 @@ void main() {
     });
     test('get max payload', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
 
       //todo wait for connected
       await Future.delayed(const Duration(seconds: 2));
@@ -218,7 +218,7 @@ void main() {
     });
     test('sub continuous msg', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('sub');
       var r = 0;
       const iteration = 100;
@@ -235,7 +235,7 @@ void main() {
     });
     test('sub defect 13 binary', () async {
       final client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       final sub = client.sub('sub');
       var r = 0;
       const iteration = 100;

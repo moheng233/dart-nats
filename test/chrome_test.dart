@@ -11,7 +11,7 @@ void main() {
     test('ws', () async {
       var client = NatsClient();
       unawaited(
-          client.connect(Uri.parse('ws://localhost:8080'), retryInterval: 1));
+          client.connect(Uri.parse('nats://localhost:4222'), retryInterval: 1));
       var sub = client.sub('subject1');
       await client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
       var msg = await sub.stream.first;
@@ -20,7 +20,7 @@ void main() {
     });
     test('await', () async {
       var client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       var sub = client.sub('subject1');
       var result = await client.pub(
           'subject1', Uint8List.fromList('message1'.codeUnits),
@@ -33,7 +33,7 @@ void main() {
     });
     test('reconnect', () async {
       var client = NatsClient();
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       var sub = client.sub('subject1');
       var result = await client.pub(
           'subject1', Uint8List.fromList('message1'.codeUnits),
@@ -44,7 +44,7 @@ void main() {
       await client.close();
       expect(String.fromCharCodes(msg.byte), equals('message1'));
 
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       result = await client.pub(
           'subject1', Uint8List.fromList('message2'.codeUnits),
           buffer: false);
@@ -59,7 +59,7 @@ void main() {
         // print(s);
         statusHistory.add(s);
       });
-      await client.connect(Uri.parse('ws://localhost:8080'));
+      await client.connect(Uri.parse('nats://localhost:4222'));
       await client.close();
 
       // no runtime error should be fine
@@ -75,7 +75,7 @@ void main() {
         statusHistory.add(s);
       });
       await client.connect(
-        Uri.parse('ws://localhost:8080'),
+        Uri.parse('nats://localhost:4222'),
         retry: true,
         retryCount: 3,
         retryInterval: 1,

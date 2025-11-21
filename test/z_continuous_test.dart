@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 const iteration = 1000;
 void run(SendPort sendPort) async {
   var client = NatsClient();
-  await client.connect(Uri.parse('ws://localhost:8080'));
+  await client.connect(Uri.parse('nats://localhost:4222'));
   for (var i = 0; i < iteration; i++) {
     client.pubString('iso', i.toString());
     //commend out for reproduce issue#4

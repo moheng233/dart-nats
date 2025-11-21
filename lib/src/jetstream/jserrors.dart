@@ -15,14 +15,14 @@ import 'jsapi_types.dart';
 
 /// Base JetStream exception
 class JetStreamException implements Exception {
-  /// Error message
-  final String? message;
-  
-  /// API error details
-  final ApiError? apiError;
-
   /// Creates a JetStream exception
   JetStreamException(this.message, {this.apiError});
+
+  /// Error message
+  final String? message;
+
+  /// API error details
+  final ApiError? apiError;
 
   @override
   String toString() {
@@ -37,76 +37,76 @@ class JetStreamException implements Exception {
 class JetStreamApiException extends JetStreamException {
   /// Creates a JetStream API exception from an API error
   JetStreamApiException(ApiError apiError)
-      : super(apiError.description, apiError: apiError);
+    : super(apiError.description, apiError: apiError);
 }
 
 /// Stream not found exception
 class StreamNotFoundException extends JetStreamException {
-  /// The name of the stream that was not found
-  final String streamName;
-
   /// Creates a stream not found exception
   StreamNotFoundException(this.streamName)
-      : super('Stream not found: $streamName');
+    : super('Stream not found: $streamName');
+
+  /// The name of the stream that was not found
+  final String streamName;
 }
 
 /// Consumer not found exception
 class ConsumerNotFoundException extends JetStreamException {
-  /// The name of the stream
-  final String streamName;
-  
-  /// The name of the consumer that was not found
-  final String consumerName;
-
   /// Creates a consumer not found exception
   ConsumerNotFoundException(this.streamName, this.consumerName)
-      : super('Consumer not found: $consumerName on stream $streamName');
+    : super('Consumer not found: $consumerName on stream $streamName');
+
+  /// The name of the stream
+  final String streamName;
+
+  /// The name of the consumer that was not found
+  final String consumerName;
 }
 
 /// Stream already exists exception
 class StreamAlreadyExistsException extends JetStreamException {
-  /// The name of the stream that already exists
-  final String streamName;
-
   /// Creates a stream already exists exception
   StreamAlreadyExistsException(this.streamName)
-      : super('Stream already exists: $streamName');
+    : super('Stream already exists: $streamName');
+
+  /// The name of the stream that already exists
+  final String streamName;
 }
 
 /// Consumer already exists exception
 class ConsumerAlreadyExistsException extends JetStreamException {
-  /// The name of the stream
-  final String streamName;
-  
-  /// The name of the consumer that already exists
-  final String consumerName;
-
   /// Creates a consumer already exists exception
   ConsumerAlreadyExistsException(this.streamName, this.consumerName)
-      : super('Consumer already exists: $consumerName on stream $streamName');
+    : super('Consumer already exists: $consumerName on stream $streamName');
+
+  /// The name of the stream
+  final String streamName;
+
+  /// The name of the consumer that already exists
+  final String consumerName;
 }
 
 /// JetStream not enabled exception
 class JetStreamNotEnabledException extends JetStreamException {
   /// Creates a JetStream not enabled exception
   JetStreamNotEnabledException()
-      : super('JetStream is not enabled on the server');
+    : super('JetStream is not enabled on the server');
 }
 
 /// Message acknowledgment exception
 class MessageAckException extends JetStreamException {
   /// Creates a message acknowledgment exception
-  MessageAckException(String message) : super(message);
+  MessageAckException(String super.message);
 }
 
 /// Invalid stream configuration exception
 class InvalidStreamConfigException extends JetStreamException {
   /// Creates an invalid stream configuration exception
-  InvalidStreamConfigException(String message) : super(message);
+  InvalidStreamConfigException(String super.message);
 }
 
 /// Invalid consumer configuration exception
 class InvalidConsumerConfigException extends JetStreamException {
   /// Creates an invalid consumer configuration exception
-  InvalidConsumerConfigException(String message) : super(message);
+  InvalidConsumerConfigException(String super.message);
 }
