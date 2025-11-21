@@ -11,9 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// JetStream API types and constants
+import 'package:json_annotation/json_annotation.dart';
+
+part 'jsapi_types.g.dart';
 
 /// Retention policy for a stream
+@JsonEnum(fieldRename: FieldRename.snake)
 enum RetentionPolicy {
   /// Limits based retention (messages, bytes, age)
   limits,
@@ -22,10 +25,12 @@ enum RetentionPolicy {
   interest,
 
   /// Work queue retention - messages are removed once acknowledged
+  @JsonValue('workqueue')
   workQueue,
 }
 
 /// Storage type for a stream
+@JsonEnum(fieldRename: FieldRename.snake)
 enum StorageType {
   /// File based storage
   file,
@@ -35,15 +40,18 @@ enum StorageType {
 }
 
 /// Discard policy for a stream when limits are reached
+@JsonEnum(fieldRename: FieldRename.snake)
 enum DiscardPolicy {
   /// Discard old messages when limits are reached
   old,
 
   /// Discard new messages when limits are reached
+  @JsonValue('new')
   new_,
 }
 
 /// Acknowledgment policy for a consumer
+@JsonEnum(fieldRename: FieldRename.snake)
 enum AckPolicy {
   /// Requires no acks for delivered messages
   none,
@@ -56,6 +64,7 @@ enum AckPolicy {
 }
 
 /// Delivery policy for a consumer
+@JsonEnum(fieldRename: FieldRename.snake)
 enum DeliverPolicy {
   /// Start delivering from the first available message
   all,
@@ -77,6 +86,7 @@ enum DeliverPolicy {
 }
 
 /// Replay policy controls message delivery rate
+@JsonEnum(fieldRename: FieldRename.snake)
 enum ReplayPolicy {
   /// Deliver messages as fast as possible
   instant,
@@ -86,7 +96,19 @@ enum ReplayPolicy {
 }
 
 /// JetStream API error response
+@JsonSerializable(fieldRename: FieldRename.snake)
 class ApiError {
+  /// Creates an API error
+  ApiError({
+    required this.code,
+    required this.description,
+    this.errCode,
+  });
+
+  /// Creates an API error from JSON
+  factory ApiError.fromJson(Map<String, dynamic> json) =>
+      _$ApiErrorFromJson(json);
+
   /// HTTP like error code in the 300 to 500 range
   final int code;
 
@@ -96,40 +118,13 @@ class ApiError {
   /// The NATS error code unique to each kind of error
   final int? errCode;
 
-  /// Creates an API error
-  ApiError({
-    required this.code,
-    required this.description,
-    this.errCode,
-  });
-
-  /// Creates an API error from JSON
-  factory ApiError.fromJson(Map<String, dynamic> json) {
-    return ApiError(
-      code: json['code'] as int,
-      description: json['description'] as String,
-      errCode: json['err_code'] as int?,
-    );
-  }
-
   /// Converts the API error to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'code': code,
-      'description': description,
-      if (errCode != null) 'err_code': errCode,
-    };
-  }
+  Map<String, dynamic> toJson() => _$ApiErrorToJson(this);
 }
 
 /// Base API response
+@JsonSerializable(fieldRename: FieldRename.snake)
 class ApiResponse {
-  /// Response type
-  final String type;
-  
-  /// API error if present
-  final ApiError? error;
-
   /// Creates an API response
   ApiResponse({
     required this.type,
@@ -137,26 +132,37 @@ class ApiResponse {
   });
 
   /// Creates an API response from JSON
-  factory ApiResponse.fromJson(Map<String, dynamic> json) {
-    return ApiResponse(
-      type: json['type'] as String,
-      error: json['error'] != null
-          ? ApiError.fromJson(json['error'] as Map<String, dynamic>)
-          : null,
-    );
-  }
+  factory ApiResponse.fromJson(Map<String, dynamic> json) =>
+      _$ApiResponseFromJson(json);
+
+  /// Response type
+  final String type;
+
+  /// API error if present
+  final ApiError? error;
 
   /// Converts the API response to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      if (error != null) 'error': error!.toJson(),
-    };
-  }
+  Map<String, dynamic> toJson() => _$ApiResponseToJson(this);
 }
 
 /// Stream state information
+@JsonSerializable(fieldRename: FieldRename.snake)
 class StreamState {
+  /// Creates a stream state
+  StreamState({
+    required this.messages,
+    required this.bytes,
+    required this.firstSeq,
+    required this.lastSeq,
+    required this.consumerCount,
+    this.firstTs,
+    this.lastTs,
+  });
+
+  /// Creates a stream state from JSON
+  factory StreamState.fromJson(Map<String, dynamic> json) =>
+      _$StreamStateFromJson(json);
+
   /// Number of messages stored in the stream
   final int messages;
 
@@ -178,46 +184,25 @@ class StreamState {
   /// Number of consumers
   final int consumerCount;
 
-  /// Creates a stream state
-  StreamState({
-    required this.messages,
-    required this.bytes,
-    required this.firstSeq,
-    this.firstTs,
-    required this.lastSeq,
-    this.lastTs,
-    required this.consumerCount,
-  });
-
-  /// Creates a stream state from JSON
-  factory StreamState.fromJson(Map<String, dynamic> json) {
-    return StreamState(
-      messages: json['messages'] as int,
-      bytes: json['bytes'] as int,
-      firstSeq: json['first_seq'] as int,
-      firstTs: json['first_ts'] as String?,
-      lastSeq: json['last_seq'] as int,
-      lastTs: json['last_ts'] as String?,
-      consumerCount: json['consumer_count'] as int,
-    );
-  }
-
   /// Converts the stream state to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'messages': messages,
-      'bytes': bytes,
-      'first_seq': firstSeq,
-      if (firstTs != null) 'first_ts': firstTs,
-      'last_seq': lastSeq,
-      if (lastTs != null) 'last_ts': lastTs,
-      'consumer_count': consumerCount,
-    };
-  }
+  Map<String, dynamic> toJson() => _$StreamStateToJson(this);
 }
 
 /// Stream source configuration for mirroring or sourcing
+@JsonSerializable(fieldRename: FieldRename.snake)
 class StreamSource {
+  /// Creates a stream source
+  StreamSource({
+    required this.name,
+    this.optStartSeq,
+    this.optStartTime,
+    this.filterSubject,
+  });
+
+  /// Creates from JSON
+  factory StreamSource.fromJson(Map<String, dynamic> json) =>
+      _$StreamSourceFromJson(json);
+
   /// Name of the source stream
   final String name;
 
@@ -230,37 +215,36 @@ class StreamSource {
   /// Filter subject
   final String? filterSubject;
 
-  /// Creates a stream source
-  StreamSource({
-    required this.name,
-    this.optStartSeq,
-    this.optStartTime,
-    this.filterSubject,
-  });
-
-  /// Creates from JSON
-  factory StreamSource.fromJson(Map<String, dynamic> json) {
-    return StreamSource(
-      name: json['name'] as String,
-      optStartSeq: json['opt_start_seq'] as int?,
-      optStartTime: json['opt_start_time'] as String?,
-      filterSubject: json['filter_subject'] as String?,
-    );
-  }
-
   /// Converts to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      if (optStartSeq != null) 'opt_start_seq': optStartSeq,
-      if (optStartTime != null) 'opt_start_time': optStartTime,
-      if (filterSubject != null) 'filter_subject': filterSubject,
-    };
-  }
+  Map<String, dynamic> toJson() => _$StreamSourceToJson(this);
 }
 
 /// Stream configuration
+@JsonSerializable(fieldRename: FieldRename.snake)
 class StreamConfig {
+  /// Creates a stream configuration
+  StreamConfig({
+    required this.name,
+    this.subjects,
+    this.retention = RetentionPolicy.limits,
+    this.maxConsumers = -1,
+    this.maxMsgs = -1,
+    this.maxBytes = -1,
+    this.maxAge = 0,
+    this.maxMsgSize = -1,
+    this.storage = StorageType.file,
+    this.discard,
+    this.numReplicas = 1,
+    this.duplicateWindow,
+    this.description,
+    this.noAck,
+    this.maxMsgsPerSubject,
+  });
+
+  /// Creates a stream configuration from JSON
+  factory StreamConfig.fromJson(Map<String, dynamic> json) =>
+      _$StreamConfigFromJson(json);
+
   /// A unique name for the stream
   final String name;
 
@@ -303,67 +287,27 @@ class StreamConfig {
   /// No ack for published messages
   final bool? noAck;
 
-  /// Creates a stream configuration
-  StreamConfig({
-    required this.name,
-    this.subjects,
-    this.retention = RetentionPolicy.limits,
-    this.maxConsumers = -1,
-    this.maxMsgs = -1,
-    this.maxBytes = -1,
-    this.maxAge = 0,
-    this.maxMsgSize = -1,
-    this.storage = StorageType.file,
-    this.discard,
-    this.numReplicas = 1,
-    this.duplicateWindow,
-    this.description,
-    this.noAck,
-  });
-
-  /// Creates a stream configuration from JSON
-  factory StreamConfig.fromJson(Map<String, dynamic> json) {
-    return StreamConfig(
-      name: json['name'] as String,
-      subjects: (json['subjects'] as List<dynamic>?)?.cast<String>(),
-      retention: _retentionPolicyFromString(json['retention'] as String?),
-      maxConsumers: json['max_consumers'] as int? ?? -1,
-      maxMsgs: json['max_msgs'] as int? ?? -1,
-      maxBytes: json['max_bytes'] as int? ?? -1,
-      maxAge: json['max_age'] as int? ?? 0,
-      maxMsgSize: json['max_msg_size'] as int? ?? -1,
-      storage: _storageTypeFromString(json['storage'] as String?),
-      discard: _discardPolicyFromString(json['discard'] as String?),
-      numReplicas: json['num_replicas'] as int? ?? 1,
-      duplicateWindow: json['duplicate_window'] as int?,
-      description: json['description'] as String?,
-      noAck: json['no_ack'] as bool?,
-    );
-  }
+  /// Per subject history (number of messages per subject to keep)
+  final int? maxMsgsPerSubject;
 
   /// Converts the stream configuration to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      if (subjects != null) 'subjects': subjects,
-      'retention': _retentionPolicyToString(retention),
-      'max_consumers': maxConsumers,
-      'max_msgs': maxMsgs,
-      'max_bytes': maxBytes,
-      'max_age': maxAge,
-      'max_msg_size': maxMsgSize,
-      'storage': _storageTypeToString(storage),
-      if (discard != null) 'discard': _discardPolicyToString(discard!),
-      'num_replicas': numReplicas,
-      if (duplicateWindow != null) 'duplicate_window': duplicateWindow,
-      if (description != null) 'description': description,
-      if (noAck != null) 'no_ack': noAck,
-    };
-  }
+  Map<String, dynamic> toJson() => _$StreamConfigToJson(this);
 }
 
 /// Stream information
+@JsonSerializable(fieldRename: FieldRename.snake)
 class StreamInfo {
+  /// Creates stream information
+  StreamInfo({
+    required this.config,
+    required this.created,
+    required this.state,
+  });
+
+  /// Creates stream information from JSON
+  factory StreamInfo.fromJson(Map<String, dynamic> json) =>
+      _$StreamInfoFromJson(json);
+
   /// Stream configuration
   final StreamConfig config;
 
@@ -373,34 +317,36 @@ class StreamInfo {
   /// Current stream state
   final StreamState state;
 
-  /// Creates stream information
-  StreamInfo({
-    required this.config,
-    required this.created,
-    required this.state,
-  });
-
-  /// Creates stream information from JSON
-  factory StreamInfo.fromJson(Map<String, dynamic> json) {
-    return StreamInfo(
-      config: StreamConfig.fromJson(json['config'] as Map<String, dynamic>),
-      created: json['created'] as String,
-      state: StreamState.fromJson(json['state'] as Map<String, dynamic>),
-    );
-  }
-
   /// Converts stream information to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'config': config.toJson(),
-      'created': created,
-      'state': state.toJson(),
-    };
-  }
+  Map<String, dynamic> toJson() => _$StreamInfoToJson(this);
 }
 
 /// Consumer configuration
+@JsonSerializable(fieldRename: FieldRename.snake)
 class ConsumerConfig {
+  /// Creates a consumer configuration
+  ConsumerConfig({
+    this.durableName,
+    this.deliverSubject,
+    this.deliverPolicy = DeliverPolicy.all,
+    this.optStartSeq,
+    this.optStartTime,
+    this.ackPolicy = AckPolicy.explicit,
+    this.ackWait,
+    this.maxDeliver,
+    this.filterSubject,
+    this.replayPolicy = ReplayPolicy.instant,
+    this.sampleFreq,
+    this.maxAckPending,
+    this.flowControl,
+    this.idleHeartbeat,
+    this.description,
+  });
+
+  /// Creates a consumer configuration from JSON
+  factory ConsumerConfig.fromJson(Map<String, dynamic> json) =>
+      _$ConsumerConfigFromJson(json);
+
   /// Durable name for the consumer
   final String? durableName;
 
@@ -446,76 +392,13 @@ class ConsumerConfig {
   /// Description of the consumer
   final String? description;
 
-  /// Creates a consumer configuration
-  ConsumerConfig({
-    this.durableName,
-    this.deliverSubject,
-    this.deliverPolicy = DeliverPolicy.all,
-    this.optStartSeq,
-    this.optStartTime,
-    this.ackPolicy = AckPolicy.explicit,
-    this.ackWait,
-    this.maxDeliver,
-    this.filterSubject,
-    this.replayPolicy = ReplayPolicy.instant,
-    this.sampleFreq,
-    this.maxAckPending,
-    this.flowControl,
-    this.idleHeartbeat,
-    this.description,
-  });
-
-  /// Creates a consumer configuration from JSON
-  factory ConsumerConfig.fromJson(Map<String, dynamic> json) {
-    return ConsumerConfig(
-      durableName: json['durable_name'] as String?,
-      deliverSubject: json['deliver_subject'] as String?,
-      deliverPolicy: _deliverPolicyFromString(json['deliver_policy'] as String?),
-      optStartSeq: json['opt_start_seq'] as int?,
-      optStartTime: json['opt_start_time'] as String?,
-      ackPolicy: _ackPolicyFromString(json['ack_policy'] as String?),
-      ackWait: json['ack_wait'] as int?,
-      maxDeliver: json['max_deliver'] as int?,
-      filterSubject: json['filter_subject'] as String?,
-      replayPolicy: _replayPolicyFromString(json['replay_policy'] as String?),
-      sampleFreq: json['sample_freq'] as int?,
-      maxAckPending: json['max_ack_pending'] as int?,
-      flowControl: json['flow_control'] as bool?,
-      idleHeartbeat: json['idle_heartbeat'] as int?,
-      description: json['description'] as String?,
-    );
-  }
-
   /// Converts the consumer configuration to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      if (durableName != null) 'durable_name': durableName,
-      if (deliverSubject != null) 'deliver_subject': deliverSubject,
-      'deliver_policy': _deliverPolicyToString(deliverPolicy),
-      if (optStartSeq != null) 'opt_start_seq': optStartSeq,
-      if (optStartTime != null) 'opt_start_time': optStartTime,
-      'ack_policy': _ackPolicyToString(ackPolicy),
-      if (ackWait != null) 'ack_wait': ackWait,
-      if (maxDeliver != null) 'max_deliver': maxDeliver,
-      if (filterSubject != null) 'filter_subject': filterSubject,
-      'replay_policy': _replayPolicyToString(replayPolicy),
-      if (sampleFreq != null) 'sample_freq': sampleFreq,
-      if (maxAckPending != null) 'max_ack_pending': maxAckPending,
-      if (flowControl != null) 'flow_control': flowControl,
-      if (idleHeartbeat != null) 'idle_heartbeat': idleHeartbeat,
-      if (description != null) 'description': description,
-    };
-  }
+  Map<String, dynamic> toJson() => _$ConsumerConfigToJson(this);
 }
 
 /// Sequence information for delivered messages
+@JsonSerializable(fieldRename: FieldRename.snake)
 class SequenceInfo {
-  /// Consumer sequence
-  final int consumerSeq;
-
-  /// Stream sequence
-  final int streamSeq;
-
   /// Creates sequence information
   SequenceInfo({
     required this.consumerSeq,
@@ -523,24 +406,39 @@ class SequenceInfo {
   });
 
   /// Creates sequence information from JSON
-  factory SequenceInfo.fromJson(Map<String, dynamic> json) {
-    return SequenceInfo(
-      consumerSeq: json['consumer_seq'] as int,
-      streamSeq: json['stream_seq'] as int,
-    );
-  }
+  factory SequenceInfo.fromJson(Map<String, dynamic> json) =>
+      _$SequenceInfoFromJson(json);
+
+  /// Consumer sequence
+  final int consumerSeq;
+
+  /// Stream sequence
+  final int streamSeq;
 
   /// Converts sequence information to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'consumer_seq': consumerSeq,
-      'stream_seq': streamSeq,
-    };
-  }
+  Map<String, dynamic> toJson() => _$SequenceInfoToJson(this);
 }
 
 /// Consumer information
+@JsonSerializable(fieldRename: FieldRename.snake)
 class ConsumerInfo {
+  /// Creates consumer information
+  ConsumerInfo({
+    required this.streamName,
+    required this.name,
+    required this.created,
+    required this.config,
+    required this.numPending,
+    required this.numRedelivered,
+    required this.numWaiting,
+    this.delivered,
+    this.ackFloor,
+  });
+
+  /// Creates consumer information from JSON
+  factory ConsumerInfo.fromJson(Map<String, dynamic> json) =>
+      _$ConsumerInfoFromJson(json);
+
   /// Stream name
   final String streamName;
 
@@ -568,56 +466,25 @@ class ConsumerInfo {
   /// Number of waiting requests
   final int numWaiting;
 
-  /// Creates consumer information
-  ConsumerInfo({
-    required this.streamName,
-    required this.name,
-    required this.created,
-    required this.config,
-    this.delivered,
-    this.ackFloor,
-    required this.numPending,
-    required this.numRedelivered,
-    required this.numWaiting,
-  });
-
-  /// Creates consumer information from JSON
-  factory ConsumerInfo.fromJson(Map<String, dynamic> json) {
-    return ConsumerInfo(
-      streamName: json['stream_name'] as String,
-      name: json['name'] as String,
-      created: json['created'] as String,
-      config: ConsumerConfig.fromJson(json['config'] as Map<String, dynamic>),
-      delivered: json['delivered'] != null
-          ? SequenceInfo.fromJson(json['delivered'] as Map<String, dynamic>)
-          : null,
-      ackFloor: json['ack_floor'] != null
-          ? SequenceInfo.fromJson(json['ack_floor'] as Map<String, dynamic>)
-          : null,
-      numPending: json['num_pending'] as int,
-      numRedelivered: json['num_redelivered'] as int,
-      numWaiting: json['num_waiting'] as int,
-    );
-  }
-
   /// Converts consumer information to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'stream_name': streamName,
-      'name': name,
-      'created': created,
-      'config': config.toJson(),
-      if (delivered != null) 'delivered': delivered!.toJson(),
-      if (ackFloor != null) 'ack_floor': ackFloor!.toJson(),
-      'num_pending': numPending,
-      'num_redelivered': numRedelivered,
-      'num_waiting': numWaiting,
-    };
-  }
+  Map<String, dynamic> toJson() => _$ConsumerInfoToJson(this);
 }
 
 /// JetStream account statistics
+@JsonSerializable(fieldRename: FieldRename.snake)
 class JetStreamAccountStats {
+  /// Creates JetStream account statistics
+  JetStreamAccountStats({
+    required this.memory,
+    required this.storage,
+    required this.streams,
+    required this.consumers,
+  });
+
+  /// Creates JetStream account statistics from JSON
+  factory JetStreamAccountStats.fromJson(Map<String, dynamic> json) =>
+      _$JetStreamAccountStatsFromJson(json);
+
   /// Memory storage used
   final int memory;
 
@@ -630,167 +497,36 @@ class JetStreamAccountStats {
   /// Number of consumers
   final int consumers;
 
-  /// Creates JetStream account statistics
-  JetStreamAccountStats({
-    required this.memory,
-    required this.storage,
-    required this.streams,
-    required this.consumers,
+  /// Converts JetStream account statistics to JSON
+  Map<String, dynamic> toJson() => _$JetStreamAccountStatsToJson(this);
+}
+
+/// JetStream publish acknowledgment
+@JsonSerializable(fieldRename: FieldRename.snake)
+class PubAck {
+  /// Creates a publish acknowledgment
+  PubAck({
+    required this.stream,
+    required this.seq,
+    this.duplicate = false,
+    this.domain,
   });
 
-  /// Creates JetStream account statistics from JSON
-  factory JetStreamAccountStats.fromJson(Map<String, dynamic> json) {
-    return JetStreamAccountStats(
-      memory: json['memory'] as int,
-      storage: json['storage'] as int,
-      streams: json['streams'] as int,
-      consumers: json['consumers'] as int,
-    );
-  }
+  /// Creates a publish acknowledgment from JSON
+  factory PubAck.fromJson(Map<String, dynamic> json) => _$PubAckFromJson(json);
 
-  /// Converts JetStream account statistics to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'memory': memory,
-      'storage': storage,
-      'streams': streams,
-      'consumers': consumers,
-    };
-  }
-}
+  /// Stream name
+  final String stream;
 
-// Helper functions to convert enums to/from strings
+  /// Sequence number in the stream
+  final int seq;
 
-RetentionPolicy _retentionPolicyFromString(String? value) {
-  switch (value) {
-    case 'interest':
-      return RetentionPolicy.interest;
-    case 'workqueue':
-      return RetentionPolicy.workQueue;
-    default:
-      return RetentionPolicy.limits;
-  }
-}
+  /// Whether this is a duplicate
+  final bool duplicate;
 
-String _retentionPolicyToString(RetentionPolicy policy) {
-  switch (policy) {
-    case RetentionPolicy.interest:
-      return 'interest';
-    case RetentionPolicy.workQueue:
-      return 'workqueue';
-    default:
-      return 'limits';
-  }
-}
+  /// JetStream domain
+  final String? domain;
 
-StorageType _storageTypeFromString(String? value) {
-  switch (value) {
-    case 'memory':
-      return StorageType.memory;
-    default:
-      return StorageType.file;
-  }
-}
-
-String _storageTypeToString(StorageType type) {
-  switch (type) {
-    case StorageType.memory:
-      return 'memory';
-    default:
-      return 'file';
-  }
-}
-
-DiscardPolicy? _discardPolicyFromString(String? value) {
-  switch (value) {
-    case 'new':
-      return DiscardPolicy.new_;
-    case 'old':
-      return DiscardPolicy.old;
-    default:
-      return null;
-  }
-}
-
-String _discardPolicyToString(DiscardPolicy policy) {
-  switch (policy) {
-    case DiscardPolicy.new_:
-      return 'new';
-    default:
-      return 'old';
-  }
-}
-
-AckPolicy _ackPolicyFromString(String? value) {
-  switch (value) {
-    case 'none':
-      return AckPolicy.none;
-    case 'all':
-      return AckPolicy.all;
-    default:
-      return AckPolicy.explicit;
-  }
-}
-
-String _ackPolicyToString(AckPolicy policy) {
-  switch (policy) {
-    case AckPolicy.none:
-      return 'none';
-    case AckPolicy.all:
-      return 'all';
-    default:
-      return 'explicit';
-  }
-}
-
-DeliverPolicy _deliverPolicyFromString(String? value) {
-  switch (value) {
-    case 'last':
-      return DeliverPolicy.last;
-    case 'new':
-      return DeliverPolicy.new_;
-    case 'by_start_sequence':
-      return DeliverPolicy.byStartSequence;
-    case 'by_start_time':
-      return DeliverPolicy.byStartTime;
-    case 'last_per_subject':
-      return DeliverPolicy.lastPerSubject;
-    default:
-      return DeliverPolicy.all;
-  }
-}
-
-String _deliverPolicyToString(DeliverPolicy policy) {
-  switch (policy) {
-    case DeliverPolicy.last:
-      return 'last';
-    case DeliverPolicy.new_:
-      return 'new';
-    case DeliverPolicy.byStartSequence:
-      return 'by_start_sequence';
-    case DeliverPolicy.byStartTime:
-      return 'by_start_time';
-    case DeliverPolicy.lastPerSubject:
-      return 'last_per_subject';
-    default:
-      return 'all';
-  }
-}
-
-ReplayPolicy _replayPolicyFromString(String? value) {
-  switch (value) {
-    case 'original':
-      return ReplayPolicy.original;
-    default:
-      return ReplayPolicy.instant;
-  }
-}
-
-String _replayPolicyToString(ReplayPolicy policy) {
-  switch (policy) {
-    case ReplayPolicy.original:
-      return 'original';
-    default:
-      return 'instant';
-  }
+  /// Converts the publish acknowledgment to JSON
+  Map<String, dynamic> toJson() => _$PubAckToJson(this);
 }

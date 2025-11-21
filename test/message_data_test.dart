@@ -7,64 +7,68 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('simple', () async {
-      var client = NatsClient();
+      final client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'), retryInterval: 1);
-      var sub = client.sub('subject1');
-      client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
-      var msg = await sub.stream.first;
+      final sub = client.sub('subject1');
+      await client.pub('subject1', Uint8List.fromList('message1'.codeUnits));
+      final msg = await sub.stream.first;
       await client.close();
-      expect(String.fromCharCodes(msg.data), equals('message1'));
+      expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('respond', () async {
-      var server = NatsClient();
+      final server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
-      var service = server.sub('service');
+      final service = server.sub('service');
       service.stream.listen((m) {
         m.respondString('respond');
       });
 
-      var requester = NatsClient();
+      final requester = NatsClient();
       await requester.connect(Uri.parse('ws://localhost:8080'));
-      var inbox = newInbox();
-      var inboxSub = requester.sub(inbox);
+      final inbox = newInbox();
+      final inboxSub = requester.sub(inbox);
 
-      requester.pubString('service', 'request', replyTo: inbox);
+      await requester.pubString('service', 'request', replyTo: inbox);
 
-      var receive = await inboxSub.stream.first;
+      final receive = await inboxSub.stream.first;
 
       await requester.close();
       await service.close();
       expect(receive.string, equals('respond'));
     });
     test('request', () async {
-      var server = NatsClient();
+      final server = NatsClient();
       await server.connect(Uri.parse('ws://localhost:8080'));
-      var service = server.sub('service');
-      unawaited(service.stream.first.then((m) {
-        m.respond(Uint8List.fromList('respond'.codeUnits));
-      }));
+      final service = server.sub('service');
+      unawaited(
+        service.stream.first.then((m) {
+          m.respond(Uint8List.fromList('respond'.codeUnits));
+        }),
+      );
 
-      var client = NatsClient();
+      final client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
-      var receive = await client.request(
-          'service', Uint8List.fromList('request'.codeUnits));
+      final receive = await client.request(
+        'service',
+        Uint8List.fromList('request'.codeUnits),
+      );
 
       await client.close();
       await service.close();
       expect(receive.string, equals('respond'));
     });
     test('long message', () async {
-      var txt =
+      const txt =
           '12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890';
-      var client = NatsClient();
+      final client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'), retryInterval: 1);
-      var sub = client.sub('subject1');
-      client.pub('subject1', Uint8List.fromList(txt.codeUnits));
-      client.pub('subject1', Uint8List.fromList(txt.codeUnits));
+      final sub = client.sub('subject1');
+      await client.pub('subject1', Uint8List.fromList(txt.codeUnits));
+      await client.pub('subject1', Uint8List.fromList(txt.codeUnits));
       var msg = await sub.stream.first;
       msg = await sub.stream.first;
       await client.close();
-      expect(String.fromCharCodes(msg.data), equals(txt));
+      expect(String.fromCharCodes(msg.byte), equals(txt));
     });
   });
 }

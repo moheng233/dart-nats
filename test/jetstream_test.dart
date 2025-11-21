@@ -17,6 +17,7 @@ void main() {
         retention: RetentionPolicy.limits,
         maxMsgs: 100,
         storage: StorageType.memory,
+        maxMsgsPerSubject: 5,
       );
 
       final json = config.toJson();
@@ -30,6 +31,7 @@ void main() {
       expect(decoded.subjects, equals(config.subjects));
       expect(decoded.retention, equals(config.retention));
       expect(decoded.storage, equals(config.storage));
+      expect(decoded.maxMsgsPerSubject, equals(5));
     });
 
     test('ConsumerConfig serialization', () {

@@ -30,6 +30,19 @@ enum KvOperation {
 
 /// KV entry representing a key-value pair
 class KvEntry {
+  /// Creates a KV entry
+  KvEntry({
+    required this.bucket,
+    required this.key,
+    required this.rawKey,
+    required this.value,
+    required this.created,
+    required this.revision,
+    required this.operation,
+    required this.length,
+    this.delta,
+  });
+
   /// The bucket name
   final String bucket;
 
@@ -57,19 +70,6 @@ class KvEntry {
   /// The delta (time since last update in nanoseconds)
   final int? delta;
 
-  /// Creates a KV entry
-  KvEntry({
-    required this.bucket,
-    required this.key,
-    required this.rawKey,
-    required this.value,
-    required this.created,
-    required this.revision,
-    required this.operation,
-    required this.length,
-    this.delta,
-  });
-
   /// Parses the value as JSON
   T json<T>() {
     return jsonDecode(string()) as T;
@@ -81,41 +81,45 @@ class KvEntry {
   }
 
   /// Whether this entry represents a deletion
-  bool get isDeleted => operation == KvOperation.del || operation == KvOperation.purge;
+  bool get isDeleted =>
+      operation == KvOperation.del || operation == KvOperation.purge;
 }
 
 /// KV entry with update information for watch operations
 class KvWatchEntry extends KvEntry {
-  /// Whether this is an update to an existing key
-  final bool isUpdate;
-
   /// Creates a KV watch entry
   KvWatchEntry({
-    required String bucket,
-    required String key,
-    required String rawKey,
-    required Uint8List value,
-    required DateTime created,
-    required int revision,
-    required KvOperation operation,
-    required int length,
-    int? delta,
+    required super.bucket,
+    required super.key,
+    required super.rawKey,
+    required super.value,
+    required super.created,
+    required super.revision,
+    required super.operation,
+    required super.length,
     required this.isUpdate,
-  }) : super(
-          bucket: bucket,
-          key: key,
-          rawKey: rawKey,
-          value: value,
-          created: created,
-          revision: revision,
-          operation: operation,
-          length: length,
-          delta: delta,
-        );
+    super.delta,
+  });
+
+  /// Whether this is an update to an existing key
+  final bool isUpdate;
 }
 
 /// KV bucket status
 class KvStatus {
+  /// Creates KV status
+  KvStatus({
+    required this.bucket,
+    required this.values,
+    required this.bytes,
+    required this.history,
+    required this.storage,
+    required this.replicas,
+    required this.sealed,
+    this.description,
+    this.ttl,
+  });
+
   /// The bucket name
   final String bucket;
 
@@ -142,23 +146,23 @@ class KvStatus {
 
   /// Whether the bucket is sealed
   final bool sealed;
-
-  /// Creates KV status
-  KvStatus({
-    required this.bucket,
-    this.description,
-    required this.values,
-    required this.bytes,
-    required this.history,
-    this.ttl,
-    required this.storage,
-    required this.replicas,
-    required this.sealed,
-  });
 }
 
 /// Options for creating a KV bucket
 class KvOptions {
+  /// Creates KV options
+  KvOptions({
+    this.description,
+    this.history = 1,
+    this.ttl,
+    this.maxBytes,
+    this.storage = StorageType.file,
+    this.replicas = 1,
+    this.republish,
+    this.mirror,
+    this.sources,
+  });
+
   /// Description of the bucket
   final String? description;
 
@@ -185,19 +189,6 @@ class KvOptions {
 
   /// Source streams for aggregation
   final List<StreamSource>? sources;
-
-  /// Creates KV options
-  KvOptions({
-    this.description,
-    this.history = 1,
-    this.ttl,
-    this.maxBytes,
-    this.storage = StorageType.file,
-    this.replicas = 1,
-    this.republish,
-    this.mirror,
-    this.sources,
-  });
 }
 
 /// Helper to convert operation enum to string

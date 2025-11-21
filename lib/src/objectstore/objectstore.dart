@@ -14,14 +14,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 
 import '../client.dart';
 import '../inbox.dart';
-import '../jetstream/jsclient.dart';
-import '../jetstream/jsm.dart';
+import '../jetstream/jsapi_codes.dart';
 import '../jetstream/jsapi_types.dart';
+import '../jetstream/jsclient.dart';
 import '../jetstream/jserrors.dart';
+import '../jetstream/jsm.dart';
 import 'obj_types.dart';
 
 /// Default chunk size for object storage (128KB)
@@ -35,10 +37,14 @@ final RegExp _validBucketRe = RegExp(r'^[-\w]+$');
 
 /// Object Store Manager for creating and managing object stores
 class Objm {
+  Objm._(this._jsm, this._js);
+
+  /// Creates from existing JetStream client
+  Objm.fromJetStream(JetStreamClient js, JetStreamManager jsm)
+    : _js = js,
+      _jsm = jsm;
   final JetStreamManager _jsm;
   final JetStreamClient _js;
-
-  Objm._(this._jsm, this._js);
 
   /// Creates an object store manager from a NATS client
   static Future<Objm> fromClient(NatsClient nc) async {
@@ -46,11 +52,6 @@ class Objm {
     final js = jetstream(nc);
     return Objm._(jsm, js);
   }
-
-  /// Creates from existing JetStream client
-  Objm.fromJetStream(JetStreamClient js, JetStreamManager jsm)
-      : _js = js,
-        _jsm = jsm;
 
   /// Lists all object store bucket names
   Stream<String> list() async* {
@@ -62,7 +63,10 @@ class Objm {
   }
 
   /// Creates a new object store or binds to existing one
-  Future<ObjectStore> create(String bucket, [ObjectStoreOptions? options]) async {
+  Future<ObjectStore> create(
+    String bucket, [
+    ObjectStoreOptions? options,
+  ]) async {
     _validateBucket(bucket);
     final opts = options ?? ObjectStoreOptions();
 
@@ -70,8 +74,6 @@ class Objm {
     final config = StreamConfig(
       name: streamName,
       subjects: ['\$O.$bucket.C.>', '\$O.$bucket.M.>'],
-      retention: RetentionPolicy.limits,
-      maxMsgs: -1,
       maxBytes: opts.maxBytes ?? -1,
       maxAge: opts.ttl ?? 0,
       maxMsgSize: _maxChunkSize,
@@ -85,7 +87,7 @@ class Objm {
       await _jsm.addStream(config);
     } on JetStreamApiException catch (e) {
       // If stream already exists, just bind to it
-      if (e.apiError?.errCode != 10058) {
+      if (e.apiError?.errCode != JetStreamApiCodes.streamAlreadyExists) {
         rethrow;
       }
     }
@@ -112,7 +114,7 @@ class Objm {
   Future<bool> delete(String bucket) async {
     _validateBucket(bucket);
     final streamName = 'OBJ_$bucket';
-    return await _jsm.deleteStream(streamName);
+    return _jsm.deleteStream(streamName);
   }
 
   /// Gets status of an object store
@@ -141,11 +143,10 @@ class Objm {
 
 /// Object Store for storing and retrieving objects
 class ObjectStore {
+  ObjectStore._(this._bucket, this._js, this._jsm);
   final String _bucket;
   final JetStreamClient _js;
   final JetStreamManager _jsm;
-
-  ObjectStore._(this._bucket, this._js, this._jsm);
 
   /// Gets the bucket name
   String get bucket => _bucket;
@@ -175,7 +176,9 @@ class ObjectStore {
     // Store chunks
     for (var i = 0; i < chunks; i++) {
       final start = i * chunkSize;
-      final end = (start + chunkSize > data.length) ? data.length : start + chunkSize;
+      final end = (start + chunkSize > data.length)
+          ? data.length
+          : start + chunkSize;
       final chunk = data.sublist(start, end);
 
       final chunkSubject = '\$O.$_bucket.C.$nuid.$i';
@@ -218,7 +221,7 @@ class ObjectStore {
         final response = await _js.nc.request(
           requestSubject,
           Uint8List.fromList(utf8.encode(request)),
-          timeout: Duration(seconds: 5),
+          timeout: const Duration(seconds: 5),
         );
 
         chunks.add(response.byte);
@@ -254,10 +257,11 @@ class ObjectStore {
       final response = await _js.nc.request(
         requestSubject,
         Uint8List.fromList(utf8.encode(request)),
-        timeout: Duration(seconds: 5),
+        timeout: const Duration(seconds: 5),
       );
 
-      final meta = jsonDecode(utf8.decode(response.byte)) as Map<String, dynamic>;
+      final meta =
+          jsonDecode(utf8.decode(response.byte)) as Map<String, dynamic>;
       if (meta['name'] == name) {
         return ObjectInfo.fromJson({
           ...meta,
@@ -299,9 +303,10 @@ class ObjectStore {
     final seen = <String>{};
 
     try {
-      await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
+      await for (final msg in sub.stream.timeout(const Duration(seconds: 1))) {
         try {
-          final meta = jsonDecode(utf8.decode(msg.byte)) as Map<String, dynamic>;
+          final meta =
+              jsonDecode(utf8.decode(msg.byte)) as Map<String, dynamic>;
           final name = meta['name'] as String?;
           final deleted = meta['deleted'] as bool? ?? false;
 
@@ -316,7 +321,7 @@ class ObjectStore {
     } on TimeoutException {
       // No more messages
     } finally {
-      _js.nc.unSub(sub);
+      await _js.nc.unSub(sub);
     }
   }
 

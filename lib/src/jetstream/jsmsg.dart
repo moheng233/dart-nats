@@ -21,45 +21,44 @@ import 'jserrors.dart';
 class JsHeaders {
   /// JetStream domain header
   static const String domain = 'Nats-Domain';
-  
+
   /// Stream name header
   static const String stream = 'Nats-Stream';
-  
+
   /// Consumer name header
   static const String consumer = 'Nats-Consumer';
-  
+
   /// Delivered consumer sequence header
   static const String deliveredConsumerSeq = 'Nats-Delivered-Consumer-Seq';
-  
+
   /// Delivered stream sequence header
   static const String deliveredStreamSeq = 'Nats-Delivered-Stream-Seq';
-  
+
   /// Timestamp header
   static const String timestamp = 'Nats-Time-Stamp';
-  
+
   /// Pending messages header
   static const String pending = 'Nats-Pending-Messages';
-  
+
   /// Pending bytes header
   static const String pendingBytes = 'Nats-Pending-Bytes';
-  
+
   /// Last consumer sequence header
   static const String lastConsumerSeq = 'Nats-Last-Consumer';
-  
+
   /// Last stream sequence header
   static const String lastStreamSeq = 'Nats-Last-Stream';
 }
 
 /// JetStream message with metadata
 class JsMsg {
-  final Message _msg;
-  bool _acked = false;
-
   /// Creates a JetStream message wrapper
   JsMsg(this._msg);
+  final Message<dynamic> _msg;
+  bool _acked = false;
 
   /// Get the underlying NATS message
-  Message get message => _msg;
+  Message<dynamic> get message => _msg;
 
   /// Get message subject
   String? get subject => _msg.subject;
@@ -131,7 +130,7 @@ class JsMsg {
       throw MessageAckException('No reply subject available for nak');
     }
 
-    String nakMsg = '-NAK';
+    var nakMsg = '-NAK';
     if (delay != null) {
       // Convert delay to JSON format (microseconds instead of nanoseconds for compatibility)
       nakMsg = jsonEncode({'delay': delay.inMicroseconds * 1000});
@@ -174,4 +173,3 @@ class JsMsg {
     return _msg.respondString(str);
   }
 }
-

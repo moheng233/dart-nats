@@ -16,11 +16,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../client.dart';
-import '../message.dart';
-import '../jetstream/jsclient.dart';
-import '../jetstream/jsm.dart';
+import '../jetstream/jsapi_codes.dart';
 import '../jetstream/jsapi_types.dart';
+import '../jetstream/jsclient.dart';
 import '../jetstream/jserrors.dart';
+import '../jetstream/jsm.dart';
+import '../message.dart';
 import 'kv_types.dart';
 
 const String _kvOperationHeader = 'KV-Operation';
@@ -33,10 +34,14 @@ final RegExp _validKeyRe = RegExp(r'^[-/=.\w]+$');
 
 /// KV Manager for creating and managing KV buckets
 class Kvm {
+  Kvm._(this._jsm, this._js);
+
+  /// Creates a KV manager with existing JetStream client
+  Kvm.fromJetStream(JetStreamClient js, JetStreamManager jsm)
+    : _js = js,
+      _jsm = jsm;
   final JetStreamManager _jsm;
   final JetStreamClient _js;
-
-  Kvm._(this._jsm, this._js);
 
   /// Creates a KV manager from a NATS client
   static Future<Kvm> fromClient(NatsClient nc) async {
@@ -44,11 +49,6 @@ class Kvm {
     final js = jetstream(nc);
     return Kvm._(jsm, js);
   }
-
-  /// Creates a KV manager with existing JetStream client
-  Kvm.fromJetStream(JetStreamClient js, JetStreamManager jsm)
-      : _js = js,
-        _jsm = jsm;
 
   /// Lists all KV bucket names
   Stream<String> list() async* {
@@ -68,22 +68,20 @@ class Kvm {
     final config = StreamConfig(
       name: streamName,
       subjects: ['\$KV.$bucket.>'],
-      retention: RetentionPolicy.limits,
-      maxMsgs: -1,
       maxBytes: opts.maxBytes ?? -1,
       maxAge: opts.ttl ?? 0,
-      maxMsgSize: -1,
       storage: opts.storage,
       numReplicas: opts.replicas,
       description: opts.description,
       discard: DiscardPolicy.new_,
+      maxMsgsPerSubject: opts.history,
     );
 
     try {
       await _jsm.addStream(config);
     } on JetStreamApiException catch (e) {
       // If stream already exists, just bind to it
-      if (e.apiError?.errCode != 10058) {
+      if (e.apiError?.errCode != JetStreamApiCodes.streamAlreadyExists) {
         rethrow;
       }
     }
@@ -110,7 +108,7 @@ class Kvm {
   Future<bool> delete(String bucket) async {
     _validateBucket(bucket);
     final streamName = 'KV_$bucket';
-    return await _jsm.deleteStream(streamName);
+    return _jsm.deleteStream(streamName);
   }
 
   /// Gets status of a KV bucket
@@ -141,11 +139,10 @@ class Kvm {
 
 /// KV bucket for key-value operations
 class Kv {
+  Kv._(this._bucket, this._js, this._jsm);
   final String _bucket;
   final JetStreamClient _js;
   final JetStreamManager _jsm;
-
-  Kv._(this._bucket, this._js, this._jsm);
 
   /// Gets the bucket name
   String get bucket => _bucket;
@@ -155,15 +152,15 @@ class Kv {
     _validateKey(key);
 
     final subject = '\$KV.$_bucket.$key';
-    final header = Header();
-    header.add(_kvOperationHeader, 'PUT');
 
     final ack = await _js.publish(
       subject,
       value,
-      options: JetStreamPublishOptions(headers: {
-        _kvOperationHeader: 'PUT',
-      }),
+      options: JetStreamPublishOptions(
+        headers: {
+          _kvOperationHeader: 'PUT',
+        },
+      ),
     );
     return ack.seq;
   }
@@ -188,7 +185,7 @@ class Kv {
     final response = await _js.nc.request(
       requestSubject,
       Uint8List.fromList(utf8.encode(request)),
-      timeout: Duration(seconds: 5),
+      timeout: const Duration(seconds: 5),
     );
     final entry = _parseKvEntry(response, key);
     return entry;
@@ -202,9 +199,11 @@ class Kv {
     await _js.publish(
       subject,
       Uint8List(0),
-      options: JetStreamPublishOptions(headers: {
-        _kvOperationHeader: 'DEL',
-      }),
+      options: JetStreamPublishOptions(
+        headers: {
+          _kvOperationHeader: 'DEL',
+        },
+      ),
     );
   }
 
@@ -216,9 +215,11 @@ class Kv {
     await _js.publish(
       subject,
       Uint8List(0),
-      options: JetStreamPublishOptions(headers: {
-        _kvOperationHeader: 'PURGE',
-      }),
+      options: JetStreamPublishOptions(
+        headers: {
+          _kvOperationHeader: 'PURGE',
+        },
+      ),
     );
   }
 
@@ -231,7 +232,7 @@ class Kv {
 
     final seen = <String>{};
 
-    await for (final msg in sub.stream.timeout(Duration(seconds: 1))) {
+    await for (final msg in sub.stream.timeout(const Duration(seconds: 1))) {
       if (msg.subject != null) {
         final key = msg.subject!.substring('\$KV.$_bucket.'.length);
         if (!seen.contains(key)) {
@@ -268,7 +269,7 @@ class Kv {
     }
   }
 
-  KvEntry? _parseKvEntry(Message msg, String key) {
+  KvEntry? _parseKvEntry(Message<dynamic> msg, String key) {
     final operation = msg.header?.get(_kvOperationHeader);
     final kvOp = kvOperationFromString(operation);
 
