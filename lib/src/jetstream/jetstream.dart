@@ -12,16 +12,12 @@
 // limitations under the License.
 
 /// JetStream module exports
+library;
 
-// Client and Manager
-export 'jsclient.dart';
-export 'jsm.dart';
 
-// Types
+export 'jsapi_codes.dart';
 export 'jsapi_types.dart';
-
-// Messages
-export 'jsmsg.dart';
-
-// Errors
+export 'jsclient.dart';
 export 'jserrors.dart';
+export 'jsm.dart';
+export 'jsmsg.dart';

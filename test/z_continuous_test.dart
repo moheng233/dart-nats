@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 
 const iteration = 1000;
 void run(SendPort sendPort) async {
-  var client = Client();
+  var client = NatsClient();
   await client.connect(Uri.parse('ws://localhost:8080'));
   for (var i = 0; i < iteration; i++) {
     client.pubString('iso', i.toString());
@@ -21,7 +21,7 @@ void run(SendPort sendPort) async {
 void main() {
   group('all', () {
     test('continuous', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'));
       var sub = client.sub('iso');
       var r = 0;
@@ -48,7 +48,7 @@ void main() {
       expect(r, equals(iteration));
     });
     test('continuous with ack', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('nats://localhost:4222'),
           connectOption: ConnectOption(verbose: true));
       var sub = client.sub('iso');

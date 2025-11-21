@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// KV (Key-Value) Store module exports
-
 // Main KV implementation
 export 'kv.dart';
 

@@ -12,7 +12,7 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('nats:', () async {
-      var client = Client();
+      var client = NatsClient();
       client.acceptBadCert = true;
       await client.connect(Uri.parse('nats://localhost:4443'));
       var sub = client.sub('subject1');
@@ -26,7 +26,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('tls:', () async {
-      var client = Client();
+      var client = NatsClient();
       client.acceptBadCert = true;
       await client.connect(Uri.parse('tls://localhost:4443'));
       var sub = client.sub('subject1');
@@ -42,7 +42,7 @@ void main() {
     test('wss:', () async {
       HttpOverrides.global = MyHttpOverrides();
 
-      var client = Client();
+      var client = NatsClient();
       client.acceptBadCert = true;
       await client.connect(Uri.parse('wss://localhost:8443'));
       var sub = client.sub('subject1');

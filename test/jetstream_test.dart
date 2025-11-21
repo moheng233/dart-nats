@@ -17,6 +17,7 @@ void main() {
         retention: RetentionPolicy.limits,
         maxMsgs: 100,
         storage: StorageType.memory,
+        maxMsgsPerSubject: 5,
       );
 
       final json = config.toJson();
@@ -30,6 +31,7 @@ void main() {
       expect(decoded.subjects, equals(config.subjects));
       expect(decoded.retention, equals(config.retention));
       expect(decoded.storage, equals(config.storage));
+      expect(decoded.maxMsgsPerSubject, equals(5));
     });
 
     test('ConsumerConfig serialization', () {
@@ -144,7 +146,7 @@ void main() {
       header.add('Nats-Pending-Messages', '5');
 
       // Create a client (we won't use it for this test)
-      final client = Client();
+      final client = NatsClient();
       
       // Create a NATS message
       final msg = Message(

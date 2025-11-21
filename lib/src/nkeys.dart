@@ -1,46 +1,38 @@
+// ignore_for_file: constant_identifier_names TODO
+
 import 'dart:typed_data';
 
 import 'package:base32/base32.dart';
-import 'package:dart_nats/src/common.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 
+import 'common.dart';
+
 /// PrefixByteSeed is the version byte used for encoded NATS Seeds
-const PrefixByteSeed = 18 << 3; // Base32-encodes to 'S...'
+const int PrefixByteSeed = 18 << 3; // Base32-encodes to 'S...'
 
 /// PrefixBytePrivate is the version byte used for encoded NATS Private keys
-const PrefixBytePrivate = 15 << 3; // Base32-encodes to 'P...'
+const int PrefixBytePrivate = 15 << 3; // Base32-encodes to 'P...'
 
 /// PrefixByteServer is the version byte used for encoded NATS Servers
-const PrefixByteServer = 13 << 3; // Base32-encodes to 'N...'
+const int PrefixByteServer = 13 << 3; // Base32-encodes to 'N...'
 
 /// PrefixByteCluster is the version byte used for encoded NATS Clusters
-const PrefixByteCluster = 2 << 3; // Base32-encodes to 'C...'
+const int PrefixByteCluster = 2 << 3; // Base32-encodes to 'C...'
 
 /// PrefixByteOperator is the version byte used for encoded NATS Operators
-const PrefixByteOperator = 14 << 3; // Base32-encodes to 'O...'
+const int PrefixByteOperator = 14 << 3; // Base32-encodes to 'O...'
 
 /// PrefixByteAccount is the version byte used for encoded NATS Accounts
 const PrefixByteAccount = 0; // Base32-encodes to 'A...'
 
 /// PrefixByteUser is the version byte used for encoded NATS Users
-const PrefixByteUser = 20 << 3; // Base32-encodes to 'U...'
+const int PrefixByteUser = 20 << 3; // Base32-encodes to 'U...'
 
 /// PrefixByteUnknown is for unknown prefixes.
-const PrefixByteUnknown = 23 << 3; // Base32-encodes to 'X...'
+const int PrefixByteUnknown = 23 << 3; // Base32-encodes to 'X...'
 
 ///Nkeys
 class Nkeys {
-  /// key pair
-  ed.KeyPair keyPair;
-
-  /// seed string
-  Uint8List get rawSeed {
-    return ed.seed(keyPair.privateKey);
-  }
-
-  /// prefixByte
-  int prefixByte;
-
   ///create nkeys by keypair
   Nkeys(this.prefixByte, this.keyPair) {
     if (!_checkValidPrefixByte(prefixByte)) {
@@ -49,19 +41,19 @@ class Nkeys {
   }
 
   /// generate new nkeys
-  static Nkeys newNkeys(int prefixByte) {
-    var kp = ed.generateKey();
+  factory Nkeys.newNkeys(int prefixByte) {
+    final kp = ed.generateKey();
 
     return Nkeys(prefixByte, kp);
   }
 
   /// new nkeys from seed
-  static Nkeys fromSeed(String seed) {
-    var raw = base32.decode(seed);
+  factory Nkeys.fromSeed(String seed) {
+    final raw = base32.decode(seed);
 
     // Need to do the reverse here to get back to internal representation.
-    var b1 = raw[0] & 248; // 248 = 11111000
-    var b2 = ((raw[0] & 7) << 5) | ((raw[1] & 248) >> 3); // 7 = 00000111
+    final b1 = raw[0] & 248; // 248 = 11111000
+    final b2 = ((raw[0] & 7) << 5) | ((raw[1] & 248) >> 3); // 7 = 00000111
 
     if (b1 != PrefixByteSeed) {
       throw Exception(NkeysException('not seed prefix byte'));
@@ -70,33 +62,44 @@ class Nkeys {
       throw Exception(NkeysException('not public prefix byte'));
     }
 
-    var rawSeed = raw.sublist(2, 34);
-    var key = ed.newKeyFromSeed(rawSeed);
-    var kp = ed.KeyPair(key, ed.public(key));
+    final rawSeed = raw.sublist(2, 34);
+    final key = ed.newKeyFromSeed(rawSeed);
+    final kp = ed.KeyPair(key, ed.public(key));
 
     return Nkeys(b2, kp);
   }
 
   /// Create new pair
-  static Nkeys createPair(int prefix) {
-    var kp = ed.generateKey();
+  factory Nkeys.createPair(int prefix) {
+    final kp = ed.generateKey();
     return Nkeys(prefix, kp);
   }
 
   /// Create new User type KeyPair
-  static Nkeys createUser() {
-    return createPair(PrefixByteUser);
+  factory Nkeys.createUser() {
+    return Nkeys.createPair(PrefixByteUser);
   }
 
   /// Create new Account type KeyPair
-  static Nkeys createAccount() {
-    return createPair(PrefixByteAccount);
+  factory Nkeys.createAccount() {
+    return Nkeys.createPair(PrefixByteAccount);
   }
 
   /// Create new Operator type KeyPair
-  static Nkeys createOperator() {
-    return createPair(PrefixByteOperator);
+  factory Nkeys.createOperator() {
+    return Nkeys.createPair(PrefixByteOperator);
   }
+
+  /// key pair
+  final ed.KeyPair keyPair;
+
+  /// seed string
+  Uint8List get rawSeed {
+    return ed.seed(keyPair.privateKey);
+  }
+
+  /// prefixByte
+  final int prefixByte;
 
   /// get public key
   String get seed {
@@ -125,34 +128,37 @@ class Nkeys {
 
   /// Sign message
   List<int> sign(List<int> message) {
-    var msg = Uint8List.fromList(message);
-    var r = List<int>.from(ed.sign(keyPair.privateKey, msg));
+    final msg = Uint8List.fromList(message);
+    final r = List<int>.from(ed.sign(keyPair.privateKey, msg));
     return r;
   }
 
   /// verify
   static bool verify(String publicKey, List<int> message, List<int> signature) {
-    var r = _decode(publicKey);
-    var prefix = r[0][0];
+    final r = _decode(publicKey);
+    final prefix = r[0][0];
     if (!_checkValidPrefixByte(prefix)) {
       throw NkeysException('Ivalid Public key');
     }
 
-    var pub = r[1].toList();
+    final pub = r[1].toList();
     if (pub.length < ed.PublicKeySize) {
       throw NkeysException('Ivalid Public key');
     }
     while (pub.length > ed.PublicKeySize) {
       pub.removeLast();
     }
-    return ed.verify(ed.PublicKey(pub), Uint8List.fromList(message),
-        Uint8List.fromList(signature));
+    return ed.verify(
+      ed.PublicKey(pub),
+      Uint8List.fromList(message),
+      Uint8List.fromList(signature),
+    );
   }
 
   /// decide public expect prefix
   /// throw exception if error
   static Uint8List decode(int expectPrefix, String src) {
-    var res = _decode(src);
+    final res = _decode(src);
     if (res[0][0] != expectPrefix) {
       throw NkeysException('encode invalid prefix');
     }
@@ -162,10 +168,10 @@ class Nkeys {
 
 /// return [0]=prefix [1]=byte data [2]=type if prefix is 'S' seed
 List<Uint8List> _decode(String src) {
-  var b = base32.decode(src).toList();
-  var ret = <Uint8List>[];
+  final b = base32.decode(src).toList();
+  final ret = <Uint8List>[];
 
-  var prefix = b[0];
+  final prefix = b[0];
   if (_checkValidPrefixByte(prefix)) {
     ret.add(Uint8List.fromList([prefix]));
     b.removeAt(0);
@@ -175,15 +181,17 @@ List<Uint8List> _decode(String src) {
 
   // Might be a seed.
   // Need to do the reverse here to get back to internal representation.
-  var b1 = b[0] & 248; // 248 = 11111000
-  var b2 = ((b[0] & 7) << 5) | ((b[1] & 248) >> 3); // 7 = 00000111
+  final b1 = b[0] & 248; // 248 = 11111000
+  final b2 = ((b[0] & 7) << 5) | ((b[1] & 248) >> 3); // 7 = 00000111
 
   if (b1 == PrefixByteSeed) {
     ret.add(Uint8List.fromList([PrefixByteSeed]));
-    b.removeAt(0);
-    b.removeAt(0);
-    ret.add(Uint8List.fromList(b));
-    ret.add(Uint8List.fromList([b2]));
+    b
+      ..removeAt(0)
+      ..removeAt(0);
+    ret
+      ..add(Uint8List.fromList(b))
+      ..add(Uint8List.fromList([b2]));
     return ret;
   }
 
@@ -224,12 +232,13 @@ String _encode(int prefix, List<int> src) {
     throw NkeysException('encode invalid prefix');
   }
 
-  var raw = [prefix];
-  raw.addAll(src);
+  final raw = [
+    prefix,
+    ...src,
+    ..._crc16([prefix, ...src]),
+  ];
 
-  // Calculate and write crc16 checksum
-  raw.addAll(_crc16(raw));
-  var bytes = Uint8List.fromList(raw);
+  final bytes = Uint8List.fromList(raw);
 
   return _b32Encode(bytes);
 }
@@ -238,19 +247,16 @@ Uint8List _crc16(List<int> bytes) {
   // CCITT
   const POLYNOMIAL = 0x1021;
   // XMODEM
-  const INIT_VALUE = 0x0000;
+  const initValue = 0x0000;
 
-  final bitRange = Iterable.generate(8);
-
-  var crc = INIT_VALUE;
-  for (var byte in bytes) {
-    crc ^= (byte << 8);
-    // ignore: unused_local_variable
-    for (var i in bitRange) {
+  var crc = initValue;
+  for (final byte in bytes) {
+    crc ^= byte << 8;
+    for (var i = 0; i < 8; i++) {
       crc = (crc & 0x8000) != 0 ? (crc << 1) ^ POLYNOMIAL : crc << 1;
     }
   }
-  var byteData = ByteData(2)..setUint16(0, crc, Endian.little);
+  final byteData = ByteData(2)..setUint16(0, crc, Endian.little);
   return byteData.buffer.asUint8List();
 }
 
@@ -266,21 +272,21 @@ String _encodeSeed(int public, List<int> src) {
 
   // In order to make this human printable for both bytes, we need to do a little
   // bit manipulation to setup for base32 encoding which takes 5 bits at a time.
-  var b1 = PrefixByteSeed | ((public) >> 5);
-  var b2 = ((public) & 31) << 3; // 31 = 00011111
+  final b1 = PrefixByteSeed | (public >> 5);
+  final b2 = (public & 31) << 3; // 31 = 00011111
 
-  var raw = [b1, b2];
-
-  raw.addAll(src);
-
-  // Calculate and write crc16 checksum
-  raw.addAll(_crc16(raw));
+  final raw = [
+    b1,
+    b2,
+    ...src,
+    ..._crc16([b1, b2, ...src]),
+  ];
 
   return _b32Encode(raw);
 }
 
 String _b32Encode(List<int> bytes) {
-  var b = Uint8List.fromList(bytes);
-  var str = base32.encode(b).replaceAll(RegExp('='), '');
+  final b = Uint8List.fromList(bytes);
+  final str = base32.encode(b).replaceAll(RegExp('='), '');
   return str;
 }

@@ -9,7 +9,7 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('ws', () async {
-      var client = Client();
+      var client = NatsClient();
       unawaited(
           client.connect(Uri.parse('ws://localhost:8080'), retryInterval: 1));
       var sub = client.sub('subject1');
@@ -19,7 +19,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('await', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var result = await client.pub(
@@ -32,7 +32,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message1'));
     });
     test('reconnect', () async {
-      var client = Client();
+      var client = NatsClient();
       await client.connect(Uri.parse('ws://localhost:8080'));
       var sub = client.sub('subject1');
       var result = await client.pub(
@@ -53,7 +53,7 @@ void main() {
       expect(String.fromCharCodes(msg.byte), equals('message2'));
     });
     test('status stream', () async {
-      var client = Client();
+      var client = NatsClient();
       var statusHistory = <Status>[];
       client.statusStream.listen((s) {
         // print(s);
@@ -68,7 +68,7 @@ void main() {
       expect(statusHistory.last, equals(Status.closed));
     });
     test('status stream detail', () async {
-      var client = Client();
+      var client = NatsClient();
       var statusHistory = <Status>[];
       client.statusStream.listen((s) {
         // print(s);

@@ -16,34 +16,30 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../client.dart';
+import 'jsapi_codes.dart';
 import 'jsapi_types.dart';
 import 'jsclient.dart';
 import 'jserrors.dart';
 
 /// JetStream manager options
 class JetStreamManagerOptions extends JetStreamOptions {
-  /// Whether to check if JetStream is enabled (default: true)
-  final bool checkAPI;
-
   /// Creates JetStream manager options
   JetStreamManagerOptions({
-    String apiPrefix = '\$JS.API',
-    Duration timeout = const Duration(seconds: 5),
-    String? domain,
+    super.apiPrefix,
+    super.timeout,
+    super.domain,
     this.checkAPI = true,
-  }) : super(
-          apiPrefix: apiPrefix,
-          timeout: timeout,
-          domain: domain,
-        );
+  });
+
+  /// Whether to check if JetStream is enabled (default: true)
+  final bool checkAPI;
 }
 
 /// JetStream manager for managing streams and consumers
 class JetStreamManager {
-  final Client _nc;
-  final JetStreamManagerOptions _opts;
-
   JetStreamManager._(this._nc, this._opts);
+  final NatsClient _nc;
+  final JetStreamManagerOptions _opts;
 
   /// Get the API prefix with domain if configured
   String get _apiPrefix {
@@ -69,7 +65,7 @@ class JetStreamManager {
     );
 
     final responseData = utf8.decode(response.byte);
-    final Map<String, dynamic> json = jsonDecode(responseData);
+    final json = jsonDecode(responseData) as Map<String, dynamic>;
 
     // Check for errors
     if (json.containsKey('error')) {
@@ -124,7 +120,7 @@ class JetStreamManager {
       );
       return StreamInfo.fromJson(response);
     } on JetStreamApiException catch (e) {
-      if (e.apiError?.errCode == 10059) {
+      if (e.apiError?.errCode == JetStreamApiCodes.streamNotFound) {
         // Stream not found
         throw StreamNotFoundException(name);
       }
@@ -172,8 +168,8 @@ class JetStreamManager {
         {'offset': currentOffset},
       );
 
-      final streams =
-          (response['streams'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
+      final streams = (response['streams'] as List<dynamic>?)
+          ?.cast<Map<String, dynamic>>();
       if (streams == null || streams.isEmpty) {
         break;
       }
@@ -203,7 +199,7 @@ class JetStreamManager {
         {'subject': subject},
       );
       final streams = (response['streams'] as List<dynamic>?)?.cast<String>();
-      return streams?.isNotEmpty == true ? streams!.first : null;
+      return streams?.isNotEmpty ?? false ? streams!.first : null;
     } catch (e) {
       return null;
     }
@@ -235,7 +231,8 @@ class JetStreamManager {
   ) async {
     if (config.durableName == null) {
       throw InvalidConsumerConfigException(
-          'Consumer must be durable to update');
+        'Consumer must be durable to update',
+      );
     }
 
     final response = await _request(
@@ -266,7 +263,7 @@ class JetStreamManager {
       );
       return ConsumerInfo.fromJson(response);
     } on JetStreamApiException catch (e) {
-      if (e.apiError?.errCode == 10014) {
+      if (e.apiError?.errCode == JetStreamApiCodes.consumerNotFound) {
         // Consumer not found
         throw ConsumerNotFoundException(streamName, consumerName);
       }
@@ -283,8 +280,8 @@ class JetStreamManager {
         {'offset': currentOffset},
       );
 
-      final consumers =
-          (response['consumers'] as List<dynamic>?)?.cast<String>();
+      final consumers = (response['consumers'] as List<dynamic>?)
+          ?.cast<String>();
       if (consumers == null || consumers.isEmpty) {
         break;
       }
@@ -307,8 +304,10 @@ class JetStreamManager {
   }
 
   /// Get detailed consumer information for all consumers
-  Stream<ConsumerInfo> consumerInfo(String streamName,
-      {int offset = 0}) async* {
+  Stream<ConsumerInfo> consumerInfo(
+    String streamName, {
+    int offset = 0,
+  }) async* {
     var currentOffset = offset;
     while (true) {
       final response = await _request(
@@ -349,7 +348,7 @@ class JetStreamManager {
   }
 
   /// Get NATS connection
-  Client get nc => _nc;
+  NatsClient get nc => _nc;
 
   /// Get JetStream options
   JetStreamManagerOptions get options => _opts;
@@ -357,7 +356,7 @@ class JetStreamManager {
 
 /// Factory function to create a JetStream manager
 Future<JetStreamManager> jetstreamManager(
-  Client nc, [
+  NatsClient nc, [
   JetStreamManagerOptions? opts,
 ]) async {
   final options = opts ?? JetStreamManagerOptions();

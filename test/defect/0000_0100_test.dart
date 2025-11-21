@@ -49,7 +49,7 @@ void main() {
     // });
     test('0016 nats: Connect to invalid ws connection does not give error',
         () async {
-      var client = Client();
+      var client = NatsClient();
       var gotit = false;
       try {
         await client.connect(Uri.parse('nats://localhost:1234'),
@@ -62,7 +62,7 @@ void main() {
     test(
         '0020 larger MSG payloads not always working, check if full payload present in buffer',
         () async {
-      var client = Client();
+      var client = NatsClient();
       unawaited(client.connect(Uri.parse('nats://localhost')));
       var sub = client.sub('subject1');
       var str21k = '';
@@ -75,7 +75,7 @@ void main() {
       expect(msg.string, equals(str21k));
     });
     test('0022 Connection to nats with macos and mobile:', () async {
-      var client = Client();
+      var client = NatsClient();
       unawaited(
           client.connect(Uri.parse('nats://demo.nats.io'), retryInterval: 1));
       var sub = client.sub('subject1');

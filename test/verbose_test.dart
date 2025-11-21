@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('all', () {
     test('verbose', () async {
-      var client = Client();
+      var client = NatsClient();
       client.seed =
           'SUADD2T2KGHBWPJ4OUN4WXEFVEKJSOHRMZFPQPO5F5EBYXMM5VLWJWL6DY';
       await client.connect(

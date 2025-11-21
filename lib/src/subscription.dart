@@ -1,18 +1,33 @@
 ///subscription model
+library;
+
 import 'dart:async';
 
 import 'client.dart';
 import 'message.dart';
 
 /// subscription class
-class Subscription<T> {
+class Subscription<T extends dynamic> {
+  ///constructure
+  Subscription(
+    this.sid,
+    this.subject,
+    this._client, {
+    this.queueGroup,
+    this.jsonDecoder,
+  }) {
+    _controller = StreamController<Message<T>>();
+    _stream = _controller.stream.asBroadcastStream();
+  }
+
   ///subscriber id (audo generate)
   final int sid;
 
   ///subject and queuegroup of this subscription
-  final String? subject, queueGroup;
+  final String? subject;
+  final String? queueGroup;
 
-  final Client _client;
+  final NatsClient _client;
 
   late StreamController<Message<T>> _controller;
 
@@ -20,13 +35,6 @@ class Subscription<T> {
 
   ///convert from json string to T for structure data
   T Function(String)? jsonDecoder;
-
-  ///constructure
-  Subscription(this.sid, this.subject, this._client,
-      {this.queueGroup, this.jsonDecoder}) {
-    _controller = StreamController<Message<T>>();
-    _stream = _controller.stream.asBroadcastStream();
-  }
 
   ///
   void unSub() {
@@ -37,21 +45,23 @@ class Subscription<T> {
   Stream<Message<T>> get stream => _stream;
 
   ///sink messat to listener
-  void add(Message raw) {
+  void add(Message<dynamic> raw) {
     if (_controller.isClosed) return;
-    _controller.sink.add(Message<T>(
-      raw.subject,
-      raw.sid,
-      raw.byte,
-      _client,
-      replyTo: raw.replyTo,
-      jsonDecoder: jsonDecoder,
-      header: raw.header,
-    ));
+    _controller.sink.add(
+      Message<T>(
+        raw.subject,
+        raw.sid,
+        raw.byte,
+        _client,
+        replyTo: raw.replyTo,
+        jsonDecoder: jsonDecoder,
+        header: raw.header,
+      ),
+    );
   }
 
   ///close the stream
-  Future close() async {
+  Future<void> close() async {
     await _controller.close();
   }
 }

@@ -1,4 +1,7 @@
 ///message model sending from NATS server
+library;
+
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -6,21 +9,45 @@ import 'client.dart';
 
 /// Message Header
 class Header {
+  /// constructor
+  Header({this.headers, this.version = 'NATS/1.0'}) {
+    headers ??= {};
+  }
+
+  /// construct from bytes
+  factory Header.fromBytes(Uint8List b) {
+    final str = utf8.decode(b);
+    final m = <String, String>{};
+    final strList = str.split('\r\n');
+    final version = strList[0];
+    strList.removeAt(0);
+    for (final h in strList) {
+      /// values of headers can contain ':' so find the first index for the
+      /// correct split index
+      final splitIndex = h.indexOf(':');
+
+      /// if the index is <= to 0 it means there was either no ':' or its the
+      /// first character. In either case its not a valid header to split.
+      if (splitIndex <= 0) {
+        continue;
+      }
+      final key = h.substring(0, splitIndex);
+      final value = h.substring(splitIndex + 1);
+      m[key] = value;
+    }
+
+    return Header(headers: m, version: version);
+  }
+
   /// header version
   String version;
 
   /// headers key value
   Map<String, String>? headers;
 
-  /// constructor
-  Header({this.headers, this.version = 'NATS/1.0'}) {
-    this.headers ??= {};
-  }
-
   /// add key, value
-  Header add(String key, String value) {
+  void add(String key, String value) {
     headers![key] = value;
-    return this;
   }
 
   /// get value from key
@@ -29,37 +56,12 @@ class Header {
     return headers![key];
   }
 
-  /// construct from bytes
-  static Header fromBytes(Uint8List b) {
-    var str = utf8.decode(b);
-    Map<String, String> m = {};
-    var strList = str.split('\r\n');
-    var version = strList[0];
-    strList.removeAt(0);
-    for (var h in strList) {
-      /// values of headers can contain ':' so find the first index for the
-      /// correct split index
-      var splitIndex = h.indexOf(':');
-
-      /// if the index is <= to 0 it means there was either no ':' or its the
-      /// first character. In either case its not a valid header to split.
-      if (splitIndex <= 0) {
-        continue;
-      }
-      var key = h.substring(0, splitIndex);
-      var value = h.substring(splitIndex + 1);
-      m[key] = value;
-    }
-
-    return Header(headers: m, version: version);
-  }
-
   /// convert to bytes
   Uint8List toBytes() {
-    var str = '${this.version}\r\n';
+    var str = '$version\r\n';
 
     headers?.forEach((k, v) {
-      str = str + '$k:$v\r\n';
+      str = '$str$k:$v\r\n';
     });
 
     return Uint8List.fromList(utf8.encode(str));
@@ -67,13 +69,25 @@ class Header {
 }
 
 /// Message class
-class Message<T> {
+class Message<T extends dynamic> {
+  ///constructor
+  Message(
+    this.subject,
+    this.sid,
+    this.byte,
+    this._client, {
+    this.replyTo,
+    this.jsonDecoder,
+    this.header,
+  });
+
   ///subscriber id auto generate by client
   final int sid;
 
   /// subject  and replyto
-  final String? subject, replyTo;
-  final Client _client;
+  final String? subject;
+  final String? replyTo;
+  final NatsClient _client;
 
   /// message header
   final Header? header;
@@ -93,17 +107,13 @@ class Message<T> {
     return jsonDecoder!(string);
   }
 
-  ///constructor
-  Message(this.subject, this.sid, this.byte, this._client,
-      {this.replyTo, this.jsonDecoder, this.header});
-
   ///payload in string
   String get string => utf8.decode(byte);
 
   ///Respond to message
   bool respond(Uint8List data) {
     if (replyTo == null || replyTo == '') return false;
-    _client.pub(replyTo, data);
+    unawaited(_client.pub(replyTo, data));
     return true;
   }
 

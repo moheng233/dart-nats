@@ -16,14 +16,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../client.dart';
-import '../message.dart';
 import '../inbox.dart';
+import '../message.dart';
 import 'jsapi_types.dart';
 import 'jserrors.dart';
 import 'jsmsg.dart';
 
 /// JetStream options
 class JetStreamOptions {
+  /// Creates JetStream options
+  JetStreamOptions({
+    this.apiPrefix = r'$JS.API',
+    this.timeout = const Duration(seconds: 5),
+    this.domain,
+  });
+
   /// Prefix for JetStream API subjects (default: '\$JS.API')
   final String apiPrefix;
 
@@ -32,60 +39,20 @@ class JetStreamOptions {
 
   /// JetStream domain
   final String? domain;
-
-  /// Creates JetStream options
-  JetStreamOptions({
-    this.apiPrefix = '\$JS.API',
-    this.timeout = const Duration(seconds: 5),
-    this.domain,
-  });
-}
-
-/// JetStream publish acknowledgment
-class PubAck {
-  /// Stream name
-  final String stream;
-
-  /// Sequence number in the stream
-  final int seq;
-
-  /// Whether this is a duplicate
-  final bool duplicate;
-
-  /// JetStream domain
-  final String? domain;
-
-  /// Creates a publish acknowledgment
-  PubAck({
-    required this.stream,
-    required this.seq,
-    this.duplicate = false,
-    this.domain,
-  });
-
-  /// Creates a publish acknowledgment from JSON
-  factory PubAck.fromJson(Map<String, dynamic> json) {
-    return PubAck(
-      stream: json['stream'] as String,
-      seq: json['seq'] as int,
-      duplicate: json['duplicate'] as bool? ?? false,
-      domain: json['domain'] as String?,
-    );
-  }
-
-  /// Converts the publish acknowledgment to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'stream': stream,
-      'seq': seq,
-      'duplicate': duplicate,
-      if (domain != null) 'domain': domain,
-    };
-  }
 }
 
 /// JetStream publish options
 class JetStreamPublishOptions {
+  /// Creates JetStream publish options
+  JetStreamPublishOptions({
+    this.expectedStream,
+    this.expectedLastMsgId,
+    this.expectedLastSeq,
+    this.expectedLastSubjectSeq,
+    this.msgId,
+    this.headers,
+  });
+
   /// Expected stream name
   final String? expectedStream;
 
@@ -103,26 +70,15 @@ class JetStreamPublishOptions {
 
   /// Custom headers to add
   final Map<String, String>? headers;
-
-  /// Creates JetStream publish options
-  JetStreamPublishOptions({
-    this.expectedStream,
-    this.expectedLastMsgId,
-    this.expectedLastSeq,
-    this.expectedLastSubjectSeq,
-    this.msgId,
-    this.headers,
-  });
 }
 
 /// JetStream client for publishing and consuming messages
 class JetStreamClient {
-  final Client _nc;
-  final JetStreamOptions _opts;
-
   /// Creates a JetStream client
   JetStreamClient(this._nc, [JetStreamOptions? opts])
-      : _opts = opts ?? JetStreamOptions();
+    : _opts = opts ?? JetStreamOptions();
+  final NatsClient _nc;
+  final JetStreamOptions _opts;
 
   /// Get the API prefix with domain if configured
   String get _apiPrefix {
@@ -153,12 +109,16 @@ class JetStreamClient {
         header.add('Nats-Expected-Last-Msg-Id', options.expectedLastMsgId!);
       }
       if (options.expectedLastSeq != null) {
-        header.add('Nats-Expected-Last-Sequence',
-            options.expectedLastSeq!.toString());
+        header.add(
+          'Nats-Expected-Last-Sequence',
+          options.expectedLastSeq!.toString(),
+        );
       }
       if (options.expectedLastSubjectSeq != null) {
-        header.add('Nats-Expected-Last-Subject-Sequence',
-            options.expectedLastSubjectSeq!.toString());
+        header.add(
+          'Nats-Expected-Last-Subject-Sequence',
+          options.expectedLastSubjectSeq!.toString(),
+        );
       }
 
       // Add custom headers
@@ -167,35 +127,25 @@ class JetStreamClient {
       });
     }
 
-    // Create an inbox for the response
-    final inbox = newInbox(inboxPrefix: _nc.inboxPrefix);
-    final sub = _nc.sub(inbox);
+    // Use the client's request method which handles inbox multiplexing
+    final response = await _nc.request(
+      subject,
+      data,
+      timeout: _opts.timeout,
+      header: header,
+    );
 
-    try {
-      // Publish with headers and reply-to
-      await _nc.pub(subject, data, replyTo: inbox, header: header);
+    // Parse the response
+    final responseData = utf8.decode(response.byte);
+    final json = jsonDecode(responseData) as Map<String, dynamic>;
 
-      // Wait for the acknowledgment
-      final response =
-          await sub.stream.first.timeout(_opts.timeout, onTimeout: () {
-        throw TimeoutException(
-            'JetStream publish acknowledgment timeout: ${_opts.timeout}');
-      });
-
-      // Parse the response
-      final responseData = utf8.decode(response.byte);
-      final Map<String, dynamic> json = jsonDecode(responseData);
-
-      // Check for errors
-      if (json.containsKey('error')) {
-        final error = ApiError.fromJson(json['error'] as Map<String, dynamic>);
-        throw JetStreamApiException(error);
-      }
-
-      return PubAck.fromJson(json);
-    } finally {
-      _nc.unSub(sub);
+    // Check for errors
+    if (json.containsKey('error')) {
+      final error = ApiError.fromJson(json['error'] as Map<String, dynamic>);
+      throw JetStreamApiException(error);
     }
+
+    return PubAck.fromJson(json);
   }
 
   /// Publish a string message
@@ -222,7 +172,8 @@ class JetStreamClient {
     // If no consumer name is provided, we need to create an ephemeral consumer
     if (consumer == null && stream == null) {
       throw JetStreamException(
-          'Either stream or consumer name must be provided');
+        'Either stream or consumer name must be provided',
+      );
     }
 
     // If consumer doesn't exist and config is provided, create it
@@ -233,7 +184,6 @@ class JetStreamClient {
 
     return JetStreamSubscription._(
       _nc,
-      subject,
       stream ?? '',
       consumer ?? '',
       this,
@@ -255,30 +205,35 @@ class JetStreamClient {
     final sub = _nc.sub(deliver);
 
     // Transform the subscription stream to JsMsg
-    return sub.stream.map((msg) => JsMsg(msg));
+    return sub.stream.map(JsMsg.new);
   }
 
   /// Get NATS connection
-  Client get nc => _nc;
+  NatsClient get nc => _nc;
 
   /// Get JetStream options
   JetStreamOptions get options => _opts;
+
+  /// Dispose the JetStream client and cleanup resources
+  /// This will unsubscribe from the MuxSubscription if it was created
+  void dispose() {
+    // No cleanup needed since we now use the client's request multiplexing
+  }
 }
 
 /// JetStream subscription for pull consumers
 class JetStreamSubscription {
-  final Client _nc;
-  final String _stream;
-  final String _consumer;
-  final JetStreamClient _js;
-
   JetStreamSubscription._(
     this._nc,
-    String subject,
     this._stream,
     this._consumer,
     this._js,
   );
+
+  final NatsClient _nc;
+  final String _stream;
+  final String _consumer;
+  final JetStreamClient _js;
 
   /// Fetch a batch of messages
   /// Returns a stream of JsMsg
@@ -290,7 +245,8 @@ class JetStreamSubscription {
     // Create the request payload
     final request = jsonEncode({
       'batch': batch,
-      if (timeout != null) 'expires': timeout.inMicroseconds * 1000, // Convert to nanoseconds
+      if (timeout != null)
+        'expires': timeout.inMicroseconds * 1000, // Convert to nanoseconds
     });
 
     // Create a subscription for responses
@@ -299,7 +255,7 @@ class JetStreamSubscription {
 
     try {
       // Send the fetch request
-      _nc.pub(
+      await _nc.pub(
         requestSubject,
         Uint8List.fromList(utf8.encode(request)),
         replyTo: inbox,
@@ -315,7 +271,7 @@ class JetStreamSubscription {
         }
       }
     } finally {
-      _nc.unSub(sub);
+      await _nc.unSub(sub);
     }
   }
 
@@ -336,6 +292,6 @@ class JetStreamSubscription {
 }
 
 /// Factory function to create a JetStream client
-JetStreamClient jetstream(Client nc, [JetStreamOptions? opts]) {
+JetStreamClient jetstream(NatsClient nc, [JetStreamOptions? opts]) {
   return JetStreamClient(nc, opts);
 }

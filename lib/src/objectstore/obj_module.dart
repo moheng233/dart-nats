@@ -12,9 +12,7 @@
 // limitations under the License.
 
 /// Object Store module exports
+library;
 
-// Main Object Store implementation
-export 'objectstore.dart';
-
-// Types
 export 'obj_types.dart';
+export 'objectstore.dart';
