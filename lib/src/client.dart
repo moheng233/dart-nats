@@ -878,10 +878,10 @@ class NatsClient {
   Future<void> close() async {
     _setStatus(Status.closed);
     _backendSubs.forEach((_, s) => s = false);
-    _inboxs.clear();
+    _inboxSub?.close();
     await _transport?.close();
+    _inboxs.clear();
     _transport = null;
-    await _inboxSub?.close();
     _inboxSub = null;
     _inboxSubPrefix = null;
     _requestTimers
