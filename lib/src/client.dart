@@ -71,8 +71,8 @@ class NatsClient {
   bool _retry = false;
 
   Info _info = Info();
-  late Completer<void> _pingCompleter;
-  late Completer<void> _connectCompleter;
+  Completer<void>? _pingCompleter;
+  Completer<void>? _connectCompleter;
 
   Status _status = Status.disconnected;
 
@@ -208,37 +208,21 @@ class NatsClient {
     }
     _clientStatus = _ClientStatus.used;
     if (connectOption != null) _connectOption = connectOption;
-    do {
-      unawaited(
-        _connectLoop(
-          uri,
-          timeout: timeout,
-          retryInterval: retryInterval,
-          retryCount: retryCount,
-        ),
-      );
+    // Start the connection loop which will complete/completeError the
+    // _connectCompleter when appropriate (on successful handshake or error).
+    unawaited(
+      _connectLoop(
+        uri,
+        timeout: timeout,
+        retryInterval: retryInterval,
+        retryCount: retryCount,
+      ),
+    );
 
-      if (_clientStatus == _ClientStatus.closed || status == Status.closed) {
-        if (!_connectCompleter.isCompleted) {
-          _connectCompleter.complete();
-        }
-        await close();
-        _clientStatus = _ClientStatus.closed;
-        return;
-      }
-      if (!_retry || retryCount != -1) {
-        return _connectCompleter.future;
-      }
-      await for (final s in statusStream) {
-        if (s == Status.disconnected) {
-          break;
-        }
-        if (s == Status.closed) {
-          return;
-        }
-      }
-    } while (_retry && retryCount == -1);
-    return _connectCompleter.future;
+    // Return the completer's future — _connectLoop / _processOp will
+    // complete this completer when the connection handshake finishes or
+    // an unrecoverable error happens.
+    return _connectCompleter!.future;
   }
 
   Future<void> _connectLoop(
@@ -264,8 +248,7 @@ class NatsClient {
         }
         final sucess = await _connectUri(uri, timeout: timeout);
         if (!sucess) {
-          // TODO(moheng): 不应该出现堵塞的delayed.
-          await Future.delayed(Duration(seconds: retryInterval));
+          await Future<void>.delayed(Duration(seconds: retryInterval));
           continue;
         }
 
@@ -274,22 +257,22 @@ class NatsClient {
         return;
       } catch (err) {
         await close();
-        if (!_connectCompleter.isCompleted) {
-          _connectCompleter.completeError(err);
+        if (_connectCompleter?.isCompleted == false) {
+          _connectCompleter!.completeError(err);
         }
         _setStatus(Status.disconnected);
       }
     }
-    if (!_connectCompleter.isCompleted) {
+    if (_connectCompleter?.isCompleted == false) {
       _clientStatus = _ClientStatus.closed;
-      _connectCompleter.completeError(NatsException('can not connect $uri'));
+      _connectCompleter!.completeError(NatsException('can not connect $uri'));
     }
   }
 
   Future<bool> _connectUri(Uri uri, {int timeout = 5}) async {
     try {
       if (uri.scheme == '') {
-        throw Exception(NatsException('No scheme in uri'));
+        throw NatsException('No scheme in uri');
       }
       switch (uri.scheme) {
         case 'wss':
@@ -298,7 +281,7 @@ class NatsClient {
             final channel = WebSocketChannel.connect(uri);
             _setStatus(Status.infoHandshake);
             await _setTransport(WebSocketTransport(channel));
-          } catch (e) {
+          } on Exception catch (_) {
             return false;
           }
           return true;
@@ -342,7 +325,7 @@ class NatsClient {
         default:
           throw Exception(NatsException('schema ${uri.scheme} not support'));
       }
-    } catch (e) {
+    } on Exception catch (_) {
       return false;
     }
   }
@@ -464,8 +447,8 @@ class NatsClient {
         }
         _backendSubscriptAll();
         _flushPubBuffer();
-        if (!_connectCompleter.isCompleted) {
-          _connectCompleter.complete();
+        if (_connectCompleter?.isCompleted == false) {
+          _connectCompleter!.complete();
         }
       case 'ping':
         if (status == Status.connected) {
@@ -477,7 +460,7 @@ class NatsClient {
           _ackStream.sink.add(false);
         }
       case 'pong':
-        _pingCompleter.complete();
+        _pingCompleter?.complete();
       case '+ok':
         //do nothing
         if (_connectOption.verbose ?? false) {
@@ -580,7 +563,7 @@ class NatsClient {
   Future<void> ping() {
     _pingCompleter = Completer();
     _add('ping');
-    return _pingCompleter.future;
+    return _pingCompleter!.future;
   }
 
   void _addConnectOption(ConnectOption c) {

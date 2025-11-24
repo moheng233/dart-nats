@@ -194,12 +194,14 @@ The following is a list of features currently supported:
 - [x] - All authentication models, including NATS 2.0 JWT and nkey
 - [x] - NATS 2.x 
 - [x] - TLS 
-- [x] - JetStream support
+- [ ] - JetStream support (currently unavailable)
 
 Planned:
 - [ ] - Connect to list of servers
 
 ## JetStream
+
+> NOTE: JetStream support is currently unavailable in this library. The JetStream APIs and examples remain in the repository for reference, but they may not work with the current runtime — treat them as documentation / future work. We plan to re-enable/fix JetStream support in a future release.
 
 JetStream is the NATS persistence engine providing streaming, message, and worker queues with At-Least-Once semantics.
 

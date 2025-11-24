@@ -255,9 +255,9 @@ class JetStreamSubscription {
 
     try {
       // Send the fetch request
-      await _nc.pub(
+      await _nc.pubString(
         requestSubject,
-        Uint8List.fromList(utf8.encode(request)),
+        request,
         replyTo: inbox,
       );
 

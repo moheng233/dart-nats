@@ -38,7 +38,7 @@ class Subscription<T extends dynamic> {
 
   ///
   void unSub() {
-    _client.unSub(this);
+    unawaited(_client.unSub(this));
   }
 
   ///Stream output when server publish message

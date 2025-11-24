@@ -1,3 +1,6 @@
+// NOTE: JetStream support is currently unavailable in this library.
+// The examples in this file are kept for reference only and may not
+// work against the runtime at the moment. See README for details.
 import 'dart:async';
 import 'package:dart_nats/dart_nats.dart';
 

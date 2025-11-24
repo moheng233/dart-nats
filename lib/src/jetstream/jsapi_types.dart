@@ -39,6 +39,29 @@ enum StorageType {
   memory,
 }
 
+/// Persistence mode for streams (2.12+)
+@JsonEnum(fieldRename: FieldRename.snake)
+enum PersistMode {
+  /// Default persistence model (server chooses)
+  Default,
+
+  /// Persist to file
+  file,
+
+  /// Persist to memory
+  memory,
+}
+
+/// Compression used for storing messages in the stream (2.10+)
+@JsonEnum(fieldRename: FieldRename.snake)
+enum StoreCompression {
+  /// No compression
+  none,
+
+  /// Zstandard compression
+  zstd,
+}
+
 /// Discard policy for a stream when limits are reached
 @JsonEnum(fieldRename: FieldRename.snake)
 enum DiscardPolicy {
@@ -197,6 +220,7 @@ class StreamSource {
     this.optStartSeq,
     this.optStartTime,
     this.filterSubject,
+    this.mirrorDirect,
   });
 
   /// Creates from JSON
@@ -215,30 +239,188 @@ class StreamSource {
   /// Filter subject
   final String? filterSubject;
 
+  /// Optional for mirrors/sources - whether direct get API is preferred
+  final bool? mirrorDirect;
+
   /// Converts to JSON
   Map<String, dynamic> toJson() => _$StreamSourceToJson(this);
 }
 
+/// Placement configuration for stream replicas
+@JsonSerializable(fieldRename: FieldRename.snake)
+class Placement {
+  Placement({this.cluster, this.tags});
+
+  factory Placement.fromJson(Map<String, dynamic> json) =>
+      _$PlacementFromJson(json);
+
+  /// Optional cluster name to prefer placement
+  final String? cluster;
+
+  /// Optional arbitrary tags
+  final Map<String, String>? tags;
+
+  Map<String, dynamic> toJson() => _$PlacementToJson(this);
+}
+
+/// Simple republish definition (used by StreamConfig)
+@JsonSerializable(fieldRename: FieldRename.snake)
+class Republish {
+  Republish({this.src, this.dest, this.headers});
+
+  factory Republish.fromJson(Map<String, dynamic> json) =>
+      _$RepublishFromJson(json);
+
+  /// Source subject pattern
+  final String? src;
+
+  /// Destination subject template
+  final String? dest;
+
+  /// Optional headers mapping
+  final Map<String, String>? headers;
+
+  Map<String, dynamic> toJson() => _$RepublishToJson(this);
+}
+
+/// Subject transform configuration
+@JsonSerializable(fieldRename: FieldRename.snake)
+class SubjectTransformConfig {
+  SubjectTransformConfig({this.rule});
+
+  factory SubjectTransformConfig.fromJson(Map<String, dynamic> json) =>
+      _$SubjectTransformConfigFromJson(json);
+
+  /// A simple rule or template for subject transforms
+  final String? rule;
+
+  Map<String, dynamic> toJson() => _$SubjectTransformConfigToJson(this);
+}
+
+/// Limits applied to consumers created on the stream when not supplied
+@JsonSerializable(fieldRename: FieldRename.snake)
+class StreamConsumerLimits {
+  StreamConsumerLimits({this.inactiveThreshold, this.maxAckPending});
+
+  factory StreamConsumerLimits.fromJson(Map<String, dynamic> json) =>
+      _$StreamConsumerLimitsFromJson(json);
+
+  /// Inactive duration threshold in nanoseconds
+  final int? inactiveThreshold;
+
+  /// Max outstanding acks
+  final int? maxAckPending;
+
+  Map<String, dynamic> toJson() => _$StreamConsumerLimitsToJson(this);
+}
+
+/// Stream configuration fields that may be updated
+@JsonSerializable(fieldRename: FieldRename.snake)
+class StreamUpdateConfig {
+  StreamUpdateConfig({
+    this.subjects,
+    this.description,
+    this.maxMsgsPerSubject,
+    this.maxMsgs = -1,
+    this.maxAge = 0,
+    this.maxBytes = -1,
+    this.maxMsgSize = -1,
+    this.discard,
+    this.discardNewPerSubject,
+    this.noAck,
+    this.duplicateWindow,
+    this.sources,
+    this.allowRollupHdrs,
+    this.numReplicas = 1,
+    this.placement,
+    this.denyDelete,
+    this.denyPurge,
+    this.allowDirect,
+    this.mirrorDirect,
+    this.republish,
+    this.metadata,
+    this.subjectTransform,
+    this.compression,
+    this.consumerLimits,
+    this.subjectDeleteMarkerTtl,
+    this.mirror,
+  });
+
+  factory StreamUpdateConfig.fromJson(Map<String, dynamic> json) =>
+      _$StreamUpdateConfigFromJson(json);
+
+  final List<String>? subjects;
+  final String? description;
+  final int? maxMsgsPerSubject;
+  final int maxMsgs;
+  final int maxAge;
+  final int maxBytes;
+  final int maxMsgSize;
+  final DiscardPolicy? discard;
+  final bool? discardNewPerSubject;
+  final bool? noAck;
+  final int? duplicateWindow;
+  final List<StreamSource>? sources;
+  final bool? allowRollupHdrs;
+  final int numReplicas;
+  final Placement? placement;
+  final bool? denyDelete;
+  final bool? denyPurge;
+  final bool? allowDirect;
+  final bool? mirrorDirect;
+  final Republish? republish;
+  final Map<String, String>? metadata;
+  final SubjectTransformConfig? subjectTransform;
+  final StoreCompression? compression;
+  final StreamConsumerLimits? consumerLimits;
+  final int? subjectDeleteMarkerTtl;
+  final StreamSource? mirror;
+
+  Map<String, dynamic> toJson() => _$StreamUpdateConfigToJson(this);
+}
+
 /// Stream configuration
 @JsonSerializable(fieldRename: FieldRename.snake)
-class StreamConfig {
+class StreamConfig extends StreamUpdateConfig {
   /// Creates a stream configuration
   StreamConfig({
     required this.name,
-    this.subjects,
+    super.subjects,
     this.retention = RetentionPolicy.limits,
     this.maxConsumers = -1,
-    this.maxMsgs = -1,
-    this.maxBytes = -1,
-    this.maxAge = 0,
-    this.maxMsgSize = -1,
+    super.maxMsgs,
+    super.maxBytes,
+    super.maxAge,
+    super.maxMsgSize,
     this.storage = StorageType.file,
-    this.discard,
-    this.numReplicas = 1,
-    this.duplicateWindow,
-    this.description,
-    this.noAck,
-    this.maxMsgsPerSubject,
+    super.discard,
+    super.numReplicas,
+    super.duplicateWindow,
+    super.description,
+    super.noAck,
+    super.maxMsgsPerSubject,
+    super.discardNewPerSubject,
+    super.sources,
+    super.allowRollupHdrs,
+    super.placement,
+    super.denyDelete,
+    super.denyPurge,
+    super.allowDirect,
+    super.mirrorDirect,
+    super.republish,
+    super.metadata,
+    super.subjectTransform,
+    super.compression,
+    super.consumerLimits,
+    super.subjectDeleteMarkerTtl,
+    super.mirror,
+    this.sealed,
+    this.firstSeq,
+    this.allowMsgTtl,
+    this.allowMsgCounter,
+    this.allowMsgSchedules,
+    this.allowAtomic,
+    this.persistMode,
   });
 
   /// Creates a stream configuration from JSON
@@ -249,7 +431,7 @@ class StreamConfig {
   final String name;
 
   /// List of subjects this stream will listen on
-  final List<String>? subjects;
+  // (inherited from StreamUpdateConfig)
 
   /// Retention policy
   final RetentionPolicy retention;
@@ -257,40 +439,34 @@ class StreamConfig {
   /// Maximum number of messages to keep (-1 for unlimited)
   final int maxConsumers;
 
-  /// Maximum number of messages (-1 for unlimited)
-  final int maxMsgs;
-
-  /// Maximum total bytes (-1 for unlimited)
-  final int maxBytes;
-
-  /// Maximum age of messages in nanoseconds (0 for unlimited)
-  final int maxAge;
-
-  /// Maximum size of a single message (-1 for unlimited)
-  final int maxMsgSize;
-
   /// Storage type
   final StorageType storage;
 
-  /// Discard policy
-  final DiscardPolicy? discard;
+  // many update-specific fields are inherited from StreamUpdateConfig
 
-  /// Number of replicas for clustered streams
-  final int numReplicas;
+  /// Whether the stream is sealed
+  final bool? sealed;
 
-  /// Duplicate tracking window in nanoseconds
-  final int? duplicateWindow;
+  /// First sequence for new streams
+  final int? firstSeq;
 
-  /// Description of the stream
-  final String? description;
+  /// Allow per-message TTL using NATS-TTL header
+  final bool? allowMsgTtl;
 
-  /// No ack for published messages
-  final bool? noAck;
+  /// Allow CRDT counters on messages
+  final bool? allowMsgCounter;
 
-  /// Per subject history (number of messages per subject to keep)
-  final int? maxMsgsPerSubject;
+  /// Allow message scheduling
+  final bool? allowMsgSchedules;
+
+  /// Allow atomic batches
+  final bool? allowAtomic;
+
+  /// Persistence mode
+  final PersistMode? persistMode;
 
   /// Converts the stream configuration to JSON
+  @override
   Map<String, dynamic> toJson() => _$StreamConfigToJson(this);
 }
 
