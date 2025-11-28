@@ -12,6 +12,8 @@ import 'nkeys.dart';
 import 'subscription.dart';
 import 'transport.dart';
 
+const _inboxPrefix = '_INBOX';
+
 class NatsClient {
   NatsClient() {
     _steamHandle();
@@ -71,7 +73,6 @@ class NatsClient {
 
   ///default buffer action for pub
   bool defaultPubBuffer = true;
-  var _inboxPrefix = '_INBOX';
 
   String? _inboxSubPrefix;
 
@@ -84,15 +85,6 @@ class NatsClient {
 
   /// set Inbox prefix default '_INBOX'
   String get inboxPrefix => _inboxPrefix;
-
-  /// get Inbox prefix default '_INBOX'
-  set inboxPrefix(String i) {
-    if (_clientStatus == _ClientStatus.used) {
-      throw NatsException('inbox prefix can not change when connection in use');
-    }
-    _inboxPrefix = i;
-    _inboxSubPrefix = null;
-  }
 
   /// add json encoder for type `<T>`
   // void registerJsonEncoder<T>(String Function(T) f) {
@@ -185,7 +177,7 @@ class NatsClient {
     _cancelReconnectTimer();
 
     // 尝试初始连接
-    await _performConnect(isReconnect: false);
+    await _performConnect();
 
     // Return the completer's future — the connection process will
     // complete this completer when the connection handshake finishes or
@@ -459,17 +451,13 @@ class NatsClient {
   }
 
   void _add(String str) {
-    if (status == Status.closed || status == Status.disconnected) {
-      return;
-    }
-    if (_transport != null) {
-      _transport!.add(utf8.encode('$str\r\n'));
-      return;
-    }
-    throw Exception(NatsException('no connection'));
+    return _addByte(utf8.encode(str));
   }
 
   void _addByte(List<int> msg) {
+    if (status == Status.closed || status == Status.disconnected) {
+      return;
+    }
     if (_transport != null) {
       _transport?.add(msg);
       _transport?.add(utf8.encode('\r\n'));
@@ -913,7 +901,7 @@ class NatsClient {
             break; // not a full payload, go around again
           }
         }
-        
+
         unawaited(_processOp());
       }
     });
