@@ -10,6 +10,7 @@ import 'inbox.dart';
 import 'message.dart';
 import 'nkeys.dart';
 import 'subscription.dart';
+import 'transformers/types.dart';
 import 'transport.dart';
 
 const _inboxPrefix = '_INBOX';
@@ -25,7 +26,7 @@ class NatsClient {
   final bool _tlsRequired = false;
   bool _retry = false;
 
-  Info _info = Info();
+  var _info = ServerInfo();
   Completer<void>? _pingCompleter;
   Completer<void>? _connectCompleter;
 
@@ -48,7 +49,7 @@ class NatsClient {
   /// accept bad certificate NOT recomend to use in production
   bool acceptBadCert = false;
 
-  var _connectOption = ConnectOption();
+  var _connectOption = ConnectOptions();
 
   ///SecurityContext
   SecurityContext? securityContext;
@@ -95,7 +96,7 @@ class NatsClient {
   // }
 
   ///server info
-  Info? get info => _info;
+  ServerInfo? get info => _info;
 
   /// Nkeys seed
   String? get seed => _nkeys?.seed;
@@ -140,7 +141,7 @@ class NatsClient {
   /// Connect to NATS server
   Future<void> connect(
     Uri uri, {
-    ConnectOption? connectOption,
+    ConnectOptions? connectOption,
     int timeout = 5,
     bool retry = true,
     int retryInterval = 10,
@@ -395,7 +396,7 @@ class NatsClient {
   Future<void> tcpConnect(
     String host, {
     int port = 4222,
-    ConnectOption? connectOption,
+    ConnectOptions? connectOption,
     int timeout = 5,
     bool retry = true,
     int retryInterval = 10,
@@ -466,7 +467,7 @@ class NatsClient {
     throw Exception(NatsException('no connection'));
   }
 
-  void _addConnectOption(ConnectOption c) {
+  void _addConnectOption(ConnectOptions c) {
     _add('connect ${jsonEncode(c.toJson())}');
   }
 
@@ -740,7 +741,7 @@ class NatsClient {
         _receiveLine1 = '';
         _receiveState = _ReceiveState.idle;
       case 'info':
-        _info = Info.fromJson(jsonDecode(data) as Map<String, dynamic>);
+        _info = ServerInfo.fromJson(jsonDecode(data) as Map<String, dynamic>);
         if (_tlsRequired && !(_info.tlsRequired ?? false)) {
           throw NatsException('require TLS but server not required');
         }

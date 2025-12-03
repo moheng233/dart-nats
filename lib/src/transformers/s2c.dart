@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../message.dart';
+import 'packet/s2c.dart';
 import 'types.dart';
 
 typedef _TokenMatcher = ({List<int> upper, List<int> lower});
@@ -55,7 +55,7 @@ final class NatsS2CTransformer
 
     _PendingPayload? pendingPayload;
     _PendingType? pendingStep;
-    Uint8List? pendingHeader;
+    final headerLines = <Uint8List>[];
 
     await for (final chunk in stream) {
       if (chunk.isEmpty) continue;
@@ -90,13 +90,16 @@ final class NatsS2CTransformer
                   }
                 }
               case _PendingType.header:
-                pendingStep = .payload;
-                pendingHeader = line;
+                if (line.isEmpty) {
+                  pendingStep = .payload;
+                } else {
+                  headerLines.add(line);
+                }
               case _PendingType.payload:
                 pendingStep = null;
 
-                final result = pendingPayload!.buildPacket(line, pendingHeader);
-                pendingHeader = null;
+                final result = pendingPayload!.buildPacket(line, headerLines);
+                headerLines.clear();
                 pendingPayload = null;
 
                 yield result;
@@ -106,7 +109,6 @@ final class NatsS2CTransformer
 
           lineBuffer.addByte(_cr);
           awaitingLf = false;
-          // fall through to process current byte as normal
         }
 
         if (byte == _cr) {
@@ -175,7 +177,7 @@ final class NatsS2CTransformer
         if (parsed is Map<String, dynamic>) {
           return NatsS2CInfoPacket(ServerInfo.fromJson(parsed));
         }
-      // ignore: avoid_catches_without_on_clauses must
+        // ignore: avoid_catches_without_on_clauses must
       } catch (e) {
         // Invalid JSON, ignore this INFO message
       }
@@ -329,7 +331,7 @@ final class _PendingPayload {
   final int payloadLength;
   final int totalLength;
 
-  NatsS2CPacket buildPacket(Uint8List? payload, Uint8List? header) {
+  NatsS2CPacket buildPacket(Uint8List? payload, List<Uint8List>? headerLines) {
     if (headerLength == 0) {
       if (payloadLength > 0) {
         assert(
@@ -342,17 +344,54 @@ final class _PendingPayload {
       return NatsS2CMsgPacket(subject, sid, payload, replyTo: replyTo);
     } else {
       assert(
-        header != null && header.length == headerLength,
-        'Header length mismatch: expected $headerLength, '
-        'got ${header?.length}',
+        headerLines != null && headerLines.isNotEmpty,
+        'Header lines cannot be null or empty for HMSG',
       );
+
+      final totalHeaderLength =
+          headerLines!.fold<int>(
+            0,
+            (sum, line) => sum + line.length + 2,
+          ) +
+          2;
+
+      assert(
+        totalHeaderLength == headerLength,
+        'Header length mismatch: expected $headerLength, '
+        'got $totalHeaderLength',
+      );
+
+      final headersMap = _parseHeaderLines(headerLines);
+
       return NatsS2CHMsgPacket(
         subject,
         sid,
         payload,
         replyTo: replyTo,
-        headers: Header.fromBytes(header!),
+        headers: headersMap,
       );
     }
+  }
+
+  Map<String, String> _parseHeaderLines(List<Uint8List> headerLines) {
+    final headers = <String, String>{};
+
+    for (final lineBytes in headerLines) {
+      final line = utf8.decode(lineBytes);
+
+      if (line.isEmpty) continue;
+
+      if (line.startsWith('NATS/')) continue;
+
+      final colonIndex = line.indexOf(':');
+      if (colonIndex <= 0) continue;
+
+      final key = line.substring(0, colonIndex).trim();
+      final value = line.substring(colonIndex + 1).trim();
+
+      headers[key] = value;
+    }
+
+    return headers;
   }
 }

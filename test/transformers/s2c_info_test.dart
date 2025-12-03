@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dart_nats/src/transformers/packet/s2c.dart';
 import 'package:dart_nats/src/transformers/s2c.dart';
 import 'package:dart_nats/src/transformers/types.dart';
 import 'package:test/test.dart';
@@ -162,7 +163,7 @@ void main() {
           'proto': 1,
           'host': 'localhost',
           'port': 4222,
-          'connect_urls': [],
+          'connect_urls': <String>[],
         };
 
         final infoMessage = 'INFO ${jsonEncode(infoJson)}\r\n';
@@ -497,6 +498,136 @@ void main() {
       expect(serverInfo.clientIp, isNull);
       expect(serverInfo.cluster, isNull);
       expect(serverInfo.lameDuckMode, isTrue);
+    });
+  });
+
+  group('HMSG Protocol Parsing', () {
+    late NatsS2CTransformer transformer;
+
+    setUp(() {
+      transformer = NatsS2CTransformer();
+    });
+
+    test('should parse HMSG message with headers from NATS documentation example', () async {
+      // Example from NATS protocol documentation:
+      // HMSG FOO.BAR 9 BAZ.69 34 45␍␊NATS/1.0␍␊FoodGroup: vegetable␍␊␍␊Hello World␍␊
+      final hmsgMessage = 'HMSG FOO.BAR 9 BAZ.69 34 45\r\nNATS/1.0\r\nFoodGroup: vegetable\r\n\r\nHello World\r\n';
+      
+      final stream = Stream.value(
+        Uint8List.fromList(utf8.encode(hmsgMessage)),
+      );
+      final packets = await transformer.bind(stream).toList();
+
+      expect(packets, hasLength(1));
+      expect(packets[0], isA<NatsS2CHMsgPacket>());
+
+      final hmsgPacket = packets[0] as NatsS2CHMsgPacket;
+      
+      // Verify message properties
+      expect(hmsgPacket.subject, equals('FOO.BAR'));
+      expect(hmsgPacket.sid, equals(9));
+      expect(hmsgPacket.replyTo, equals('BAZ.69'));
+      
+      // Verify payload
+      expect(hmsgPacket.payload, isNotNull);
+      expect(utf8.decode(hmsgPacket.payload!), equals('Hello World'));
+      
+      // Verify headers
+      expect(hmsgPacket.headers, isNotNull);
+      expect(hmsgPacket.headers.containsKey('FoodGroup'), isTrue);
+      expect(hmsgPacket.headers['FoodGroup'], equals('vegetable'));
+    });
+
+    test('should parse HMSG message without reply-to', () async {
+      // Example without reply-to:
+      // HMSG FOO.BAR 34 45␍␊NATS/1.0␍␊FoodGroup: vegetable␍␊␍␊Hello World␍␊
+      final hmsgMessage = 'HMSG FOO.BAR 34 45\r\nNATS/1.0\r\nFoodGroup: vegetable\r\n\r\nHello World\r\n';
+      
+      final stream = Stream.value(
+        Uint8List.fromList(utf8.encode(hmsgMessage)),
+      );
+      final packets = await transformer.bind(stream).toList();
+
+      expect(packets, hasLength(1));
+      expect(packets[0], isA<NatsS2CHMsgPacket>());
+
+      final hmsgPacket = packets[0] as NatsS2CHMsgPacket;
+      
+      // Verify message properties
+      expect(hmsgPacket.subject, equals('FOO.BAR'));
+      expect(hmsgPacket.sid, equals(34));
+      expect(hmsgPacket.replyTo, isNull);
+      
+      // Verify payload
+      expect(hmsgPacket.payload, isNotNull);
+      expect(utf8.decode(hmsgPacket.payload!), equals('Hello World'));
+      
+      // Verify headers
+      expect(hmsgPacket.headers, isNotNull);
+      expect(hmsgPacket.headers.containsKey('FoodGroup'), isTrue);
+      expect(hmsgPacket.headers['FoodGroup'], equals('vegetable'));
+    });
+
+    test('should parse HMSG message with multiple headers', () async {
+      // Example with multiple headers:
+      // HMSG SUBJECT 12 56 78␍␊NATS/1.0␍␊Header1: value1␍␊Header2: value2␍␊Header3: value3␍␊␍␊Test payload␍␊
+      final hmsgMessage = 'HMSG SUBJECT 12 56 78\r\nNATS/1.0\r\nHeader1: value1\r\nHeader2: value2\r\nHeader3: value3\r\n\r\nTest payload\r\n';
+      
+      final stream = Stream.value(
+        Uint8List.fromList(utf8.encode(hmsgMessage)),
+      );
+      final packets = await transformer.bind(stream).toList();
+
+      expect(packets, hasLength(1));
+      expect(packets[0], isA<NatsS2CHMsgPacket>());
+
+      final hmsgPacket = packets[0] as NatsS2CHMsgPacket;
+      
+      // Verify message properties
+      expect(hmsgPacket.subject, equals('SUBJECT'));
+      expect(hmsgPacket.sid, equals(12));
+      expect(hmsgPacket.replyTo, isNull);
+      
+      // Verify payload
+      expect(hmsgPacket.payload, isNotNull);
+      expect(utf8.decode(hmsgPacket.payload!), equals('Test payload'));
+      
+      // Verify headers
+      expect(hmsgPacket.headers, isNotNull);
+      expect(hmsgPacket.headers.length, equals(3));
+      expect(hmsgPacket.headers['Header1'], equals('value1'));
+      expect(hmsgPacket.headers['Header2'], equals('value2'));
+      expect(hmsgPacket.headers['Header3'], equals('value3'));
+    });
+
+    test('should parse HMSG message with empty payload', () async {
+      // Example with empty payload:
+      // HMSG SUBJECT 12 34␍␊NATS/1.0␍␊Header1: value1␍␊␍␊␍␊
+      final hmsgMessage = 'HMSG SUBJECT 12 34\r\nNATS/1.0\r\nHeader1: value1\r\n\r\n\r\n';
+      
+      final stream = Stream.value(
+        Uint8List.fromList(utf8.encode(hmsgMessage)),
+      );
+      final packets = await transformer.bind(stream).toList();
+
+      expect(packets, hasLength(1));
+      expect(packets[0], isA<NatsS2CHMsgPacket>());
+
+      final hmsgPacket = packets[0] as NatsS2CHMsgPacket;
+      
+      // Verify message properties
+      expect(hmsgPacket.subject, equals('SUBJECT'));
+      expect(hmsgPacket.sid, equals(12));
+      expect(hmsgPacket.replyTo, isNull);
+      
+      // Verify payload is empty
+      expect(hmsgPacket.payload, isNotNull);
+      expect(hmsgPacket.payload!.length, equals(0));
+      
+      // Verify headers
+      expect(hmsgPacket.headers, isNotNull);
+      expect(hmsgPacket.headers.length, equals(1));
+      expect(hmsgPacket.headers['Header1'], equals('value1'));
     });
   });
 }

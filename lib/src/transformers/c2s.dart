@@ -2,10 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../message.dart';
-import 'types.dart';
-
-sealed class NatsC2SPacket {}
+import 'packet/c2s.dart';
 
 // 私有全局常量 - UTF-8 编码的协议字符串
 const List<int> _connectPrefix = [67, 79, 78, 78, 69, 67, 84, 32]; // "CONNECT "
@@ -19,55 +16,8 @@ const List<int> _space = [32]; // " "
 final Uint8List _ping = ascii.encode('PING\r\n'); // "PING\r\n"
 final Uint8List _pong = ascii.encode('PONG\r\n'); // "PONG\r\n"
 
-final class NatsC2SConnectPacket extends NatsC2SPacket {
-  NatsC2SConnectPacket(this.options);
-  
-  final ConnectOptions options;
-}
-
-final class NatsC2SPubPacket extends NatsC2SPacket {
-  NatsC2SPubPacket(this.subject, this.payload, {this.replyTo});
-  
-  final String subject;
-  final String? replyTo;
-  final Uint8List payload;
-}
-
-final class NatsC2SHPubPacket extends NatsC2SPacket {
-  NatsC2SHPubPacket(this.subject, this.headers, this.payload, {this.replyTo});
-  
-  final String subject;
-  final String? replyTo;
-  final Header headers;
-  final Uint8List payload;
-}
-
-final class NatsC2SSubPacket extends NatsC2SPacket {
-  NatsC2SSubPacket(this.subject, this.sid, {this.queueGroup});
-  
-  final String subject;
-  final String? queueGroup;
-  final int sid;
-}
-
-final class NatsC2SUnsubPacket extends NatsC2SPacket {
-  NatsC2SUnsubPacket(this.sid, {this.maxMsgs});
-  
-  final int sid;
-  final int? maxMsgs;
-}
-
-final class NatsC2SPingPacket extends NatsC2SPacket {
-  NatsC2SPingPacket();
-}
-
-final class NatsC2SPongPacket extends NatsC2SPacket {
-  NatsC2SPongPacket();
-}
-
 final class NatsC2STransformer
     extends StreamTransformerBase<NatsC2SPacket, Uint8List> {
-
   @override
   Stream<Uint8List> bind(Stream<NatsC2SPacket> stream) async* {
     await for (final packet in stream) {
@@ -110,37 +60,37 @@ final class NatsC2STransformer
     final result = BytesBuilder(copy: false)
       ..add(_pubPrefix)
       ..add(ascii.encode(packet.subject));
-    
+
     if (packet.replyTo != null) {
       result
         ..add(_space)
         ..add(ascii.encode(packet.replyTo!));
     }
-    
+
     result
       ..add(_space)
       ..add(ascii.encode(packet.payload.length.toString()))
       ..add(_crlf)
       ..add(packet.payload)
       ..add(_crlf);
-    
+
     return result.takeBytes();
   }
 
   Uint8List _encodeHPub(NatsC2SHPubPacket packet) {
     final headerBytes = packet.headers.toBytes();
     final totalLength = headerBytes.length + packet.payload.length;
-    
+
     final result = BytesBuilder(copy: false)
       ..add(_hpubPrefix)
       ..add(ascii.encode(packet.subject));
-    
+
     if (packet.replyTo != null) {
       result
         ..add(_space)
         ..add(ascii.encode(packet.replyTo!));
     }
-    
+
     result
       ..add(_space)
       ..add(ascii.encode(headerBytes.length.toString()))
@@ -151,7 +101,7 @@ final class NatsC2STransformer
       ..add(_crlf)
       ..add(packet.payload)
       ..add(_crlf);
-    
+
     return result.takeBytes();
   }
 
@@ -159,18 +109,18 @@ final class NatsC2STransformer
     final result = BytesBuilder(copy: false)
       ..add(_subPrefix)
       ..add(ascii.encode(packet.subject));
-    
+
     if (packet.queueGroup != null) {
       result
         ..add(_space)
         ..add(ascii.encode(packet.queueGroup!));
     }
-    
+
     result
       ..add(_space)
       ..add(ascii.encode(packet.sid.toString()))
       ..add(_crlf);
-    
+
     return result.takeBytes();
   }
 
@@ -178,15 +128,15 @@ final class NatsC2STransformer
     final result = BytesBuilder(copy: false)
       ..add(_unsubPrefix)
       ..add(ascii.encode(packet.sid.toString()));
-    
+
     if (packet.maxMsgs != null) {
       result
         ..add(_space)
         ..add(ascii.encode(packet.maxMsgs!.toString()));
     }
-    
+
     result.add(_crlf);
-    
+
     return result.takeBytes();
   }
 
