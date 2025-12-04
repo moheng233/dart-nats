@@ -1,7 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'common.g.dart';
-
 /// Nats Exception
 class NatsException implements Exception {
   /// NatsException
