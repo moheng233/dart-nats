@@ -260,7 +260,8 @@ Uint8List _crc16(List<int> bytes) {
   return byteData.buffer.asUint8List();
 }
 
-// EncodeSeed will encode a raw key with the prefix and then seed prefix and crc16 and then base32 encoded.
+// EncodeSeed will encode a raw key with the prefix and then seed prefix
+// and crc16 and then base32 encoded.
 String _encodeSeed(int public, List<int> src) {
   if (_checkValidPublicPrefixByte(public) == PrefixByteUnknown) {
     throw NkeysException('Invalid public prefix byte');
@@ -270,8 +271,9 @@ String _encodeSeed(int public, List<int> src) {
     throw NkeysException('Invalid src langth');
   }
 
-  // In order to make this human printable for both bytes, we need to do a little
-  // bit manipulation to setup for base32 encoding which takes 5 bits at a time.
+  // In order to make this human printable for both bytes, we need to do a
+  // little bit manipulation to setup for base32 encoding which takes
+  // 5 bits at a time.
   final b1 = PrefixByteSeed | (public >> 5);
   final b2 = (public & 31) << 3; // 31 = 00011111
 

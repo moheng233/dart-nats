@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import '../../message.dart';
 import '../types.dart';
 
 sealed class NatsC2SPacket {}
@@ -24,7 +23,7 @@ final class NatsC2SHPubPacket extends NatsC2SPacket {
 
   final String subject;
   final String? replyTo;
-  final Header headers;
+  final Map<String, String> headers;
   final Uint8List payload;
 }
 

@@ -103,8 +103,8 @@ class ServerInfo {
 )
 class ConnectOptions {
   ConnectOptions({
-    this.verbose,
-    this.pedantic,
+    this.verbose = false,
+    this.pedantic = false,
     this.authToken,
     this.jwt,
     this.nkey,
@@ -112,11 +112,11 @@ class ConnectOptions {
     this.user,
     this.pass,
     this.tlsRequired,
-    this.name,
-    this.lang,
-    this.version,
-    this.headers,
-    this.protocol,
+    this.name = 'dart-nats',
+    this.lang = 'dart',
+    this.version = '0.7.0',
+    this.headers = true,
+    this.protocol = 1,
   });
 
   factory ConnectOptions.fromJson(Map<String, dynamic> json) =>
@@ -124,11 +124,13 @@ class ConnectOptions {
 
   Map<String, dynamic> toJson() => _$ConnectOptionsToJson(this);
 
-  /// Verbose mode
-  final bool? verbose;
+  /// Verbose mode - receive +OK for each message
+  @JsonKey(defaultValue: false)
+  final bool verbose;
 
-  /// Pedantic mode
-  final bool? pedantic;
+  /// Pedantic mode - stricter protocol checking
+  @JsonKey(defaultValue: false)
+  final bool pedantic;
 
   /// Authentication token
   final String? authToken;
@@ -152,17 +154,22 @@ class ConnectOptions {
   final bool? tlsRequired;
 
   /// Client name
-  final String? name;
+  @JsonKey(defaultValue: 'dart-nats')
+  final String name;
 
   /// Language
-  final String? lang;
+  @JsonKey(defaultValue: 'dart')
+  final String lang;
 
   /// Version
-  final String? version;
+  @JsonKey(defaultValue: '0.7.0')
+  final String version;
 
   /// Headers support
-  final bool? headers;
+  @JsonKey(defaultValue: true)
+  final bool headers;
 
-  /// Protocol version
-  final int? protocol;
+  /// Protocol version (1 for headers support)
+  @JsonKey(defaultValue: 1)
+  final int protocol;
 }

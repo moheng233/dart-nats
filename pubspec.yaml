@@ -20,4 +20,5 @@ dependencies:
   crypto: ^3.0.0
   ed25519_edwards: ^0.3.1
   json_annotation: ^4.9.0
+  meta: ^1.16.0
   web_socket_channel: ^3.0.3

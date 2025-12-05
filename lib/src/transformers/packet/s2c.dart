@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import '../../message.dart';
 import '../types.dart';
 
 final class NatsS2CErrPacket extends NatsS2CPacket {

@@ -55,8 +55,8 @@ Map<String, dynamic> _$ServerInfoToJson(ServerInfo instance) =>
 
 ConnectOptions _$ConnectOptionsFromJson(Map<String, dynamic> json) =>
     ConnectOptions(
-      verbose: json['verbose'] as bool?,
-      pedantic: json['pedantic'] as bool?,
+      verbose: json['verbose'] as bool? ?? false,
+      pedantic: json['pedantic'] as bool? ?? false,
       authToken: json['auth_token'] as String?,
       jwt: json['jwt'] as String?,
       nkey: json['nkey'] as String?,
@@ -64,17 +64,17 @@ ConnectOptions _$ConnectOptionsFromJson(Map<String, dynamic> json) =>
       user: json['user'] as String?,
       pass: json['pass'] as String?,
       tlsRequired: json['tls_required'] as bool?,
-      name: json['name'] as String?,
-      lang: json['lang'] as String?,
-      version: json['version'] as String?,
-      headers: json['headers'] as bool?,
-      protocol: (json['protocol'] as num?)?.toInt(),
+      name: json['name'] as String? ?? 'dart-nats',
+      lang: json['lang'] as String? ?? 'dart',
+      version: json['version'] as String? ?? '0.7.0',
+      headers: json['headers'] as bool? ?? true,
+      protocol: (json['protocol'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$ConnectOptionsToJson(ConnectOptions instance) =>
     <String, dynamic>{
-      'verbose': ?instance.verbose,
-      'pedantic': ?instance.pedantic,
+      'verbose': instance.verbose,
+      'pedantic': instance.pedantic,
       'auth_token': ?instance.authToken,
       'jwt': ?instance.jwt,
       'nkey': ?instance.nkey,
@@ -82,9 +82,9 @@ Map<String, dynamic> _$ConnectOptionsToJson(ConnectOptions instance) =>
       'user': ?instance.user,
       'pass': ?instance.pass,
       'tls_required': ?instance.tlsRequired,
-      'name': ?instance.name,
-      'lang': ?instance.lang,
-      'version': ?instance.version,
-      'headers': ?instance.headers,
-      'protocol': ?instance.protocol,
+      'name': instance.name,
+      'lang': instance.lang,
+      'version': instance.version,
+      'headers': instance.headers,
+      'protocol': instance.protocol,
     };

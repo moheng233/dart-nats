@@ -49,7 +49,7 @@ final class NatsS2CTransformer
 
   @override
   Stream<NatsS2CPacket> bind(Stream<Uint8List> stream) async* {
-    final lineBuffer = BytesBuilder(copy: false);
+    final lineBuffer = BytesBuilder();
 
     var awaitingLf = false;
 
@@ -69,11 +69,11 @@ final class NatsS2CTransformer
           if (byte == _lf) {
             awaitingLf = false;
             final line = lineBuffer.takeBytes();
-            if (line.isEmpty) {
-              continue;
-            }
             switch (pendingStep) {
               case null:
+                if (line.isEmpty) {
+                  continue;
+                }
                 final result = _parseControlLine(line);
                 if (result is NatsS2CPacket) {
                   yield result;

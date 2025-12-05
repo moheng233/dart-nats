@@ -78,7 +78,18 @@ final class NatsC2STransformer
   }
 
   Uint8List _encodeHPub(NatsC2SHPubPacket packet) {
-    final headerBytes = packet.headers.toBytes();
+    // First, build the headers in a temporary builder to calculate its length
+    final headerBuilder = BytesBuilder(copy: false)
+      ..add(ascii.encode('NATS/1.0\r\n'));
+
+    // Add each header line
+    for (final entry in packet.headers.entries) {
+      headerBuilder.add(utf8.encode('${entry.key}: ${entry.value}\r\n'));
+    }
+
+    headerBuilder.add(_crlf);
+
+    final headerBytes = headerBuilder.takeBytes();
     final totalLength = headerBytes.length + packet.payload.length;
 
     final result = BytesBuilder(copy: false)
@@ -98,7 +109,6 @@ final class NatsC2STransformer
       ..add(ascii.encode(totalLength.toString()))
       ..add(_crlf)
       ..add(headerBytes)
-      ..add(_crlf)
       ..add(packet.payload)
       ..add(_crlf);
 
